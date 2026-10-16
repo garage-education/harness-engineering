@@ -1,0 +1,108 @@
+# Test requests for the course, in chapter order.
+#
+# Run them in IntelliJ IDEA (built-in HTTP Client) or VS Code (REST Client extension):
+# open this file and click the run icon next to a request.
+#
+# Start LM Studio first. Start the app with ./gradlew bootRun (port 8080).
+# The replies shown in the comments come from one run with Gemma. Your wording will differ.
+
+@lmstudio = http://localhost:1234/v1
+@app = http://localhost:8080
+
+
+### Chapter 2 · List the model identifiers in LM Studio
+# Each model name in application.yaml must match an "id" here.
+GET {{lmstudio}}/models
+
+
+### Chapter 2 · Pre-flight: Gemma must return a tool call
+# Expect "finish_reason": "tool_calls" and a countErrors call with service "checkout".
+# If the reply has no tool_calls, do not start Chapter 3.
+POST {{lmstudio}}/chat/completions
+Content-Type: application/json
+
+{
+  "model": "google/gemma-4-12b-qat",
+  "messages": [
+    {"role": "user", "content": "How many error events in the checkout service in the last 15 minutes?"}
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "countErrors",
+        "description": "Count error log events for one service in the last N minutes.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "service": {"type": "string"},
+            "minutes": {"type": "integer"}
+          },
+          "required": ["service", "minutes"]
+        }
+      }
+    }
+  ]
+}
+
+
+### Chapter 3 · One model call, no tools
+# Only exists at the end of Chapter 3. Chapter 4 renames /ask to /askAutoToolCall.
+# Expect the model to ask for logs: it has no data yet.
+GET {{app}}/ask?input=how many error events?
+
+
+### Chapter 4 · No service name: the model asks for one
+# Expect: "Please specify which service you would like to check ..."
+GET {{app}}/askAutoToolCall?input=how many error events?
+
+
+### Chapter 4 · Search service: the fake data returns 3
+# Expect: "There were 3 error events in the search service in the last 10 minutes."
+GET {{app}}/askAutoToolCall?input=how many error events in search service?
+
+
+### Chapter 4 · Checkout service: the fake data returns 412
+# Expect: "There were 412 error events in the checkout service in the last 15 minutes."
+GET {{app}}/askAutoToolCall?input=how many error events in checkout service?
+
+
+### Chapter 5 · Step 1: halt the tool call
+# Expect one tool call, unrun:
+# [{"id":"...","type":"function","name":"countErrors","arguments":"{\"minutes\":60,\"service\":\"checkout\"}"}]
+GET {{app}}/askHaltToolCall?input=how many error events in checkout service?
+
+
+### Chapter 5 · Step 1: no tool needed
+# Expect: []
+GET {{app}}/askHaltToolCall?input=what is a harness?
+
+
+### Chapter 5 · Step 4: run the loop
+# Expect: {"answer":"There were 412 error events ...","reason":"FINAL_ANSWER","steps":2,"tokens":727}
+GET {{app}}/run?input=how many error events in checkout service?
+
+
+### Chapter 5 · Step 4: two tool calls in one step
+# Expect: {"answer":"Checkout is significantly worse ... 412 ... 3 ...","reason":"FINAL_ANSWER","steps":2,"tokens":480}
+GET {{app}}/run?input=is checkout or search worse right now?
+
+
+### Chapter 5 · Step 4: no service name
+# Expect a question back in one step: {"answer":"Please specify which service ...","reason":"FINAL_ANSWER","steps":1,...}
+GET {{app}}/run?input=how many error events?
+
+
+### Chapter 6 · Step 3: the stop-reason test
+# Send this request once per row below. Change one constant in AgentLoop.java,
+# restart (or rebuild with DevTools), send, then put the constant back.
+#
+#   no change                          -> FINAL_ANSWER   steps 2
+#   MAX_STEPS = 1                      -> STEP_LIMIT     steps 1, answer null
+#   MAX_TOKENS = 100                   -> TOKEN_BUDGET   steps 1, answer null
+#   TIMEOUT = Duration.ofMillis(1)     -> TIMEOUT        steps 1, answer null
+#   MAX_REPEATS = 1                    -> LOOP_DETECTED  steps 1, answer null
+#
+# Keep the time window in the question. Without it, Gemma can ask for the window in text,
+# which ends the run as FINAL_ANSWER before any limit fires.
+GET {{app}}/run?input=how many error events in the checkout service in the last 15 minutes?

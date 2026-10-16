@@ -34,6 +34,7 @@ Open http://localhost:8000. Edit any file under `course/`, then refresh the brow
 | `course/site.json` | The site title, colors, footer, and print settings |
 | `course/assets/` | The site CSS and the diagram script |
 | `src/` | The Spring Boot code the chapters walk through |
+| `requests/harness.http` | Every test request in the course, in chapter order |
 
 ### Publish
 

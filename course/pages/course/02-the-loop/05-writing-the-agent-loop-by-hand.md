@@ -1,10 +1,117 @@
 ---
 title: "Chapter 5: Writing the agent loop by hand"
 sidebar_label: "5. The agent loop by hand"
-description: Four steps, repeated until the reply has no tool calls.
+description: Halt the tool call, read it as data, then run it yourself in a four-step loop.
 ---
 
-The loop has four steps. Send the messages to the model. If the reply has no tool calls, return its text. Otherwise run each tool, add the results to the messages, and repeat.
+This chapter replaces Spring AI's tool loop with one you write and control.
+
+**Objectives:**
+
+- Stop a tool call before it runs, and read it.
+- Write the four-step agent loop.
+- Return every run as a `RunResult` with one stop reason.
+
+In Chapter 4, `ChatClient` ran the tool for you. Your code saw only the final text. A harness must see each tool call. It decides whether the call runs, and when the run stops.
+
+## Step 1: Halt the tool call
+
+`ChatClient` runs tools through an advisor, the `ToolCallingAdvisor`. `ChatClient` adds it to every request by default. Remove it, and the tool calls come back to your code.
+
+Add this method to `Assistant`:
+
+```java
+/**
+ * Asks the model one question and stops before any tool runs.
+ *
+ * <p>{@code toolCallingAdvisorAutoRegister(false)} removes the {@code ToolCallingAdvisor}.
+ * The model still sees the tools. Its tool calls come back to this code as data.
+ *
+ * @param question the user's question, in plain text
+ * @return the tool calls the model requested; empty when it answered in text
+ */
+public List<ToolCall> askHaltToolCall(String question) {
+    AssistantMessage reply = chat.prompt()
+            .system(SYSTEM)
+            .user(question)
+            .tools(logTools)
+            .advisors(AdvisorParams.toolCallingAdvisorAutoRegister(false))
+            .call()
+            .chatResponse()
+            .getResult()
+            .getOutput();
+    return reply.getToolCalls();
+}
+```
+
+- The request is the same as `askAutoToolCall`. One line differs: `.advisors(…)`.
+- `.chatResponse()` returns the full response, not only the text.
+- `getOutput()` returns the model's reply as an `AssistantMessage`.
+- `getToolCalls()` lists the tools the model wants to run.
+
+Add the endpoint to `TestController`:
+
+```java
+@GetMapping("/askHaltToolCall")
+public List<ToolCall> askHaltToolCall(@RequestParam String input) {
+    return assistant.askHaltToolCall(input);
+}
+```
+
+Restart the app. Ask the Chapter 4 question:
+
+```bash
+curl -G http://localhost:8080/askHaltToolCall --data-urlencode "input=how many error events in checkout service?"
+```
+
+Gemma returns one tool call. Nothing ran:
+
+```json
+[{"id":"3EFxibX93b79PlmooqxhndVzdVWXnAlJ","type":"function","name":"countErrors","arguments":"{\"minutes\":60,\"service\":\"checkout\"}"}]
+```
+
+- A tool call is data: an id, a tool name, and JSON arguments.
+- The model chose `minutes: 60`. The question gave no window. Your value will differ between runs.
+- A question that needs no tool returns `[]`. Try `input=what is a harness?`.
+
+Your code now owns the call. It can run it, change it, or refuse it.
+
+## Step 2: The RunResult
+
+A run can end in more than one way. Return the reason with the answer. Create `RunResult.java`:
+
+```java
+package com.garageeducation.harness;
+
+/**
+ * The outcome of one agent run.
+ *
+ * @param answer the model's final text; {@code null} when the run stopped before a final answer
+ * @param reason the reason the run stopped
+ * @param steps  the number of model calls the run made
+ * @param tokens the total tokens the run used, as reported by the model server
+ */
+public record RunResult(String answer, StopReason reason, int steps, int tokens) {
+
+    /**
+     * Why a run stopped. Each run stops for exactly one reason.
+     */
+    public enum StopReason {
+
+        /** The model replied without tool calls. Its text is the answer. */
+        FINAL_ANSWER,
+
+        /** The run made {@code MAX_STEPS} model calls without a final answer. */
+        STEP_LIMIT
+    }
+}
+```
+
+Chapter 6 adds three more reasons.
+
+## Step 3: The loop
+
+The loop has four steps. Figure 5.1 shows them.
 
 <figure class="flow">
 <script type="application/json">
@@ -15,54 +122,213 @@ The loop has four steps. Send the messages to the model. If the reply has no too
     {"label": "2. Does the reply have tool calls?", "no": "Return its text: FINAL_ANSWER"},
     {"label": "3. Run each tool"},
     {"label": "4. Add the results to the messages"},
-    {"label": "Is step still ≤ MAX_STEPS?", "no": "Stop: STEP_LIMIT (Chapter 6)"},
+    {"label": "Is step still ≤ MAX_STEPS?", "no": "Stop: STEP_LIMIT"},
     {"label": "Repeat from step 1", "tone": "platform"}
   ]
 }
 </script>
-<figcaption>Figure 5.1. The four steps, with the step cap from the code below. The other stop rules come in Chapter 6.</figcaption>
+<figcaption>Figure 5.1. The four steps and the step cap. Chapter 6 adds three more stop rules.</figcaption>
 </figure>
 
-Call the `ChatModel` directly, not `ChatClient`. In Spring AI 2.0, `ChatClient` runs tools through a `ToolCallingAdvisor`. `ChatModel.call` only sends the tool definitions and returns the tool calls, so the code runs each tool itself.
+Create `AgentLoop.java`:
 
 ```java
-ToolCallingChatOptions options = ToolCallingChatOptions.builder()
-        .toolCallbacks(ToolCallbacks.from(logTools))
-        .build();
+package com.garageeducation.harness;
 
-for (int step = 1; step <= MAX_STEPS; step++) {
-    ChatResponse response = model.call(new Prompt(messages, options));
-    AssistantMessage reply = response.getResult().getOutput();
-    messages.add(reply);
-    if (!reply.hasToolCalls()) {
-        return new RunResult(reply.getText(), StopReason.FINAL_ANSWER, step);
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.ai.chat.client.AdvisorParams;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.AssistantMessage.ToolCall;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.stereotype.Service;
+
+import com.garageeducation.harness.RunResult.StopReason;
+
+/**
+ * The agent loop, written by hand.
+ */
+@Service
+public class AgentLoop {
+
+    /** The most model calls one run can make. */
+    static final int MAX_STEPS = 5;
+
+    private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
+
+    private final ChatClient chat;
+    private final LogTools logTools;
+    private final Map<String, ToolCallback> tools;
+
+    /**
+     * Builds the client and indexes the tools by name.
+     *
+     * @param builder  the {@link ChatClient.Builder} from the OpenAI starter
+     * @param logTools the tools the model can call
+     */
+    public AgentLoop(ChatClient.Builder builder, LogTools logTools) {
+        this.chat = builder.build();
+        this.logTools = logTools;
+        this.tools = Arrays.stream(ToolCallbacks.from(logTools))
+                .collect(Collectors.toMap(tool -> tool.getToolDefinition().name(), Function.identity()));
     }
-    // run each tool call, add ToolResponseMessage to messages
+
+    /**
+     * Runs the loop for one question.
+     *
+     * @param question the user's question, in plain text
+     * @return the answer, the stop reason, the step count, and the tokens used
+     */
+    public RunResult run(String question) {
+        List<Message> messages = new ArrayList<>(List.of(new SystemMessage(SYSTEM), new UserMessage(question)));
+        int tokens = 0;
+
+        for (int step = 1; step <= MAX_STEPS; step++) {
+            // 1. Send the messages to the model.
+            ChatResponse response = chat.prompt()
+                    .messages(messages)
+                    .tools(logTools)
+                    .advisors(AdvisorParams.toolCallingAdvisorAutoRegister(false))
+                    .call()
+                    .chatResponse();
+            AssistantMessage reply = response.getResult().getOutput();
+            messages.add(reply);
+            tokens += totalTokens(response);
+
+            // 2. A reply without tool calls is the answer.
+            if (!reply.hasToolCalls()) {
+                return new RunResult(reply.getText(), StopReason.FINAL_ANSWER, step, tokens);
+            }
+
+            // 3. Run each tool. 4. Add the results to the messages.
+            messages.add(runTools(reply.getToolCalls()));
+        }
+        return new RunResult(null, StopReason.STEP_LIMIT, MAX_STEPS, tokens);
+    }
+
+    /**
+     * Runs each tool call and collects the results in one message.
+     *
+     * <p>An unknown tool name returns an error text to the model instead of failing the run.
+     *
+     * @param calls the tool calls from one model reply
+     * @return one {@link ToolResponseMessage} with a response for each call
+     */
+    private ToolResponseMessage runTools(List<ToolCall> calls) {
+        List<ToolResponse> responses = new ArrayList<>();
+        for (ToolCall call : calls) {
+            ToolCallback tool = tools.get(call.name());
+            String result = tool == null ? "Unknown tool: " + call.name() : tool.call(call.arguments());
+            responses.add(new ToolResponse(call.id(), call.name(), result));
+        }
+        return ToolResponseMessage.builder().responses(responses).build();
+    }
+
+    /**
+     * Reads the token count from the response metadata.
+     *
+     * @param response one model response
+     * @return the total tokens for this call, or 0 when the server does not report usage
+     */
+    private static int totalTokens(ChatResponse response) {
+        Usage usage = response.getMetadata().getUsage();
+        return usage.getTotalTokens();
+    }
 }
 ```
+
+Read the code in four parts:
+
+- **The message list.** It starts with the system and user messages. Each step adds the reply and the tool results. The model has no memory, so each call resends the full list.
+- **The model call.** It is the Step 1 request with `.messages(messages)` in place of `.system()` and `.user()`.
+- **The tool map.** `ToolCallbacks.from(logTools)` wraps each `@Tool` method in a `ToolCallback`. The map finds a callback by the name in the tool call.
+- **`runTools`.** `tool.call(arguments)` parses the JSON arguments and calls `countErrors`. Each result keeps the call's id, so the model can match it to its request.
+
+Figure 5.2 shows one run.
 
 <figure class="seq">
 <script type="application/json">
 {
   "title": "A two-step run through the loop.",
   "lifelines": [
-    {"id": "loop", "label": "Your loop", "tone": "platform"},
-    {"id": "model", "label": "ChatModel", "tone": "subscriber"},
+    {"id": "loop", "label": "AgentLoop.run", "tone": "platform"},
+    {"id": "model", "label": "Gemma", "tone": "subscriber"},
     {"id": "tools", "label": "LogTools", "tone": "platform"}
   ],
   "messages": [
-    {"from": "loop", "to": "model", "label": "step 1: call(new Prompt(messages, options))"},
+    {"from": "loop", "to": "model", "label": "step 1: system + user"},
     {"from": "model", "to": "loop", "label": "AssistantMessage with a countErrors call", "kind": "response"},
-    {"from": "loop", "to": "tools", "label": "run countErrors"},
+    {"from": "loop", "to": "tools", "label": "tool.call(arguments)"},
     {"from": "tools", "to": "loop", "label": "412", "kind": "response"},
     {"from": "loop", "to": "loop", "label": "add ToolResponseMessage to messages"},
-    {"from": "loop", "to": "model", "label": "step 2: call(new Prompt(messages, options))"},
+    {"from": "loop", "to": "model", "label": "step 2: system + user + reply + tool result"},
     {"from": "model", "to": "loop", "label": "AssistantMessage, no tool calls", "kind": "response"},
-    {"from": "loop", "to": "loop", "label": "return RunResult(text, FINAL_ANSWER, 2)"}
+    {"from": "loop", "to": "loop", "label": "return RunResult(text, FINAL_ANSWER, 2, tokens)"}
   ]
 }
 </script>
-<figcaption>Figure 5.2. A two-step run. Because the loop calls <code>ChatModel</code> directly, your loop runs the tool, not Spring AI. Each step resends the full message list.</figcaption>
+<figcaption>Figure 5.2. A two-step run. Your loop runs the tool, not Spring AI. Step 2 resends every message from step 1.</figcaption>
 </figure>
 
-> **Verify:** Confirm the class names and builder methods for your Spring AI version. They change between releases.
+## Step 4: Run the loop
+
+Add the endpoint to `TestController`. Spring returns the record as JSON.
+
+```java
+@GetMapping("/run")
+public RunResult run(@RequestParam String input) {
+    return agentLoop.run(input);
+}
+```
+
+Inject `AgentLoop` in the controller's constructor, next to `Assistant`. Restart the app, then run:
+
+```bash
+curl -G http://localhost:8080/run --data-urlencode "input=how many error events in checkout service?"
+```
+
+```json
+{"answer":"There were 412 error events in the checkout service over the last 15 minutes.","reason":"FINAL_ANSWER","steps":2,"tokens":727}
+```
+
+The Chapter 5 requests in `requests/harness.http` cover every run in this chapter.
+
+Table 5.1 compares the three endpoints for the same question.
+
+| Endpoint | Who runs the tool | Returns |
+|---|---|---|
+| `/askAutoToolCall` | Spring AI's `ToolCallingAdvisor` | The final text |
+| `/askHaltToolCall` | Nobody | The tool calls, unrun |
+| `/run` | `AgentLoop.runTools` | A `RunResult`: answer, reason, steps, and tokens |
+
+<p class="caption">Table 5.1. One question, three levels of control.</p>
+
+A question with two services runs two tool calls in one step:
+
+```json
+{"answer":"Checkout is significantly worse right now with 412 errors compared to only 3 errors for search.","reason":"FINAL_ANSWER","steps":2,"tokens":480}
+```
+
+**Exercise:** Set `MAX_STEPS = 1`. Ask the checkout question again. The run stops after the first tool call:
+
+```json
+{"answer":null,"reason":"STEP_LIMIT","steps":1,"tokens":288}
+```
+
+Set it back to 5.
+
+**Summary:** The loop sends messages, runs tools, and stops with a named reason. Your code sees every tool call. Chapter 6 adds the stop rules that protect cost and time.

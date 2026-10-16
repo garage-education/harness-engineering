@@ -84,22 +84,17 @@ Figure 4.1 shows what the model sees.
 
 ## Step 2: Attach the tool
 
-Inject `LogTools` into the `Assistant`. Pass it to `.tools(logTools)` on the prompt. This is the full file in the repository:
+Make three changes to the `Assistant` from Chapter 3:
+
+- Inject `LogTools` in the constructor.
+- Rename `ask` to `askAutoToolCall`.
+- Pass the tools with `.tools(logTools)`.
 
 ```java
-package com.garageeducation.harness;
-
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.stereotype.Service;
-
-/**
- * Sends one question to the chat model and returns its text reply.
- *
- * <p>The model can call the tools in {@link LogTools}.
- * {@link ChatClient} runs each tool call and sends the result back to the model.
- */
 @Service
 public class Assistant {
+
+    private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
 
     private final ChatClient chat;
     private final LogTools logTools;
@@ -116,16 +111,17 @@ public class Assistant {
     }
 
     /**
-     * Asks the model one question.
+     * Asks the model one question and lets {@link ChatClient} run the tools.
      *
-     * <p>The system message limits the reply to two sentences.
+     * <p>{@link ChatClient} registers a {@code ToolCallingAdvisor} by default. The advisor runs each
+     * tool call, sends the result back to the model, and repeats until the reply has no tool calls.
      *
      * @param question the user's question, in plain text
      * @return the model's final text reply
      */
-    public String ask(String question) {
+    public String askAutoToolCall(String question) {
         return chat.prompt()
-                .system("You are a careful assistant. Answer in two sentences or fewer.")
+                .system(SYSTEM)
                 .user(question)
                 .tools(logTools)
                 .call()
@@ -134,7 +130,16 @@ public class Assistant {
 }
 ```
 
-`ChatClient` runs the tool for you. It sends the result back to the model and returns the final text. Chapter 5 writes this loop by hand.
+Rename the endpoint in `TestController` to match:
+
+```java
+@GetMapping("/askAutoToolCall")
+public String askAutoToolCall(@RequestParam String input) {
+    return assistant.askAutoToolCall(input);
+}
+```
+
+`ChatClient` runs the tool for you. Its `ToolCallingAdvisor` sends the result back to the model and returns the final text. Chapter 5 turns the advisor off and runs the tool by hand.
 
 ## Step 3: Run it with the tool
 
@@ -155,8 +160,10 @@ Restart the app. Table 4.1 lists three questions and the replies from one run.
 Send the last question:
 
 ```bash
-curl -G http://localhost:8080/ --data-urlencode "input=how many error events in checkout service?"
+curl -G http://localhost:8080/askAutoToolCall --data-urlencode "input=how many error events in checkout service?"
 ```
+
+The three Chapter 4 requests in `requests/harness.http` send all three questions.
 
 **Exercise:** Rename the tool, then remove its description. Compare the model's choices each time.
 

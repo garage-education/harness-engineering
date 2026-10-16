@@ -161,6 +161,8 @@ On Windows, run `gradlew.bat bootRun`.
 
 Send one request with a tool definition to Gemma. Confirm the response contains a tool call. Figure 2.2 shows the decision.
 
+Every request in this course is in `requests/harness.http`. Open it in IntelliJ IDEA or in VS Code with the REST Client extension, then click the run icon next to a request. Run the two Chapter 2 requests. The pre-flight reply must contain `"finish_reason": "tool_calls"`.
+
 <figure class="flow">
 <script type="application/json">
 {

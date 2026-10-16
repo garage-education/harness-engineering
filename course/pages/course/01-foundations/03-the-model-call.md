@@ -72,7 +72,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Exposes {@link Assistant} over HTTP for manual tests.
  *
- * <p>Example: {@code GET http://localhost:8080/?input=how many error events in checkout service?}
+ * <p>Example: {@code GET http://localhost:8080/ask?input=what is an agent harness?}
  */
 @RestController
 public class TestController {
@@ -94,19 +94,19 @@ public class TestController {
      * @param input the question; the request fails without it
      * @return the model's text reply
      */
-    @GetMapping("/")
-    public String test(@RequestParam String input) {
+    @GetMapping("/ask")
+    public String ask(@RequestParam String input) {
         return assistant.ask(input);
     }
 }
 ```
 
-`GET /` reads the `input` parameter and returns the model's reply.
+`GET /ask` reads the `input` parameter and returns the model's reply.
 
 <figure class="seq">
 <script type="application/json">
 {
-  "title": "GET /?input=…: one model call.",
+  "title": "GET /ask?input=…: one model call.",
   "lifelines": [
     {"id": "http", "label": "TestController", "tone": "platform"},
     {"id": "code", "label": "Assistant.ask", "tone": "platform"},
@@ -131,7 +131,7 @@ public class TestController {
 Restart the app. Send a question:
 
 ```bash
-curl -G http://localhost:8080/ --data-urlencode "input=how many error events?"
+curl -G http://localhost:8080/ask --data-urlencode "input=how many error events?"
 ```
 
 The model has no data. It asks for the logs:
@@ -141,5 +141,7 @@ Please provide the logs or data you are referring to. Once you share them, I can
 ```
 
 A request without `input` fails. The model is never called.
+
+Or run the Chapter 3 request in `requests/harness.http`. It works only until Chapter 4 renames the endpoint.
 
 **Summary:** One question reaches Gemma and returns text. The model cannot read logs yet. Chapter 4 gives it a tool.
