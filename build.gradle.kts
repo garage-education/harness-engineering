@@ -23,6 +23,7 @@ extra["lombok.version"] = "1.18.48"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.ai:spring-ai-starter-model-openai")
 
 	compileOnly("org.projectlombok:lombok")

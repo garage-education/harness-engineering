@@ -40,4 +40,5 @@ description: What is written, what still needs checking, and how the course chan
 - v1.1: Consolidated into one document. Spring Boot 4.1.1, Spring AI 2.0.1, Session 0.6.0, Temporal 1.35.0.
 - v1.2: Chapters 2 to 4 match the course repository. Gradle build, `application.yaml`, `TestController`, Javadoc, and recorded replies.
 - v1.3: Chapters 5 and 6 rewritten around the repository code. `askHaltToolCall` shows a tool call as data. `AgentLoop` and `RunResult` implement five stop reasons, each tested on Gemma. `requests/harness.http` holds every test request.
-- v1.4 (this document): Lombok `@RequiredArgsConstructor` replaces hand-written constructors. `AiConfig` provides one shared `ChatClient`. `AgentLoop` uses plain loops in place of streams. Lombok pinned to 1.18.48 for Java 27.
+- v1.4: Lombok `@RequiredArgsConstructor` replaces hand-written constructors. `AiConfig` provides one shared `ChatClient`. `AgentLoop` uses plain loops in place of streams. Lombok pinned to 1.18.48 for Java 27.
+- v1.5 (this document): Readable DEBUG logs. Spring AI logs each prompt, reply, and tool run; `[auto]`, `[halt]`, `[loop]`, and `[tool]` lines mark each path. Chapters 2 to 6 show real log excerpts. Actuator added for Spring AI observations.

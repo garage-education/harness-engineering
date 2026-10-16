@@ -23,12 +23,15 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Log tools the model can call.
  *
  * <p>The model sees only the tool name, the {@link Tool} description, and each
  * {@link ToolParam} description. It never sees the method body.
  */
+@Slf4j
 @Component
 public class LogTools {
 
@@ -44,7 +47,9 @@ public class LogTools {
     @Tool(description = "Count error log events for one service in the last N minutes. Use this to check for a current error spike.")
     public int countErrors(@ToolParam(description = "Service name, for example checkout") String service,
                            @ToolParam(description = "Look-back window in minutes, from 1 to 1440") int minutes) {
-        return "checkout".equals(service) ? 412 : 3; // fake data
+        int count = "checkout".equals(service) ? 412 : 3; // fake data
+        log.debug("[tool] countErrors(service={}, minutes={}) returned {}", service, minutes, count);
+        return count;
     }
 }
 ```
@@ -90,6 +95,7 @@ Make two changes to the `Assistant` from Chapter 3:
 - Pass the tools with `.tools(logTools)`.
 
 ```java
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class Assistant {
@@ -109,12 +115,15 @@ public class Assistant {
      * @return the model's final text reply
      */
     public String askAutoToolCall(String question) {
-        return chat.prompt()
+        log.debug("[auto] Spring AI runs every tool call. Question: {}", question);
+        String answer = chat.prompt()
                 .system(SYSTEM)
                 .user(question)
                 .tools(logTools)
                 .call()
                 .content();
+        log.debug("[auto] Final answer: {}", answer);
+        return answer;
     }
 }
 ```
@@ -144,6 +153,30 @@ curl -G http://localhost:8080/askAutoToolCall --data-urlencode "input=how many e
 ```
 
 The three Chapter 4 requests in `requests/harness.http` send all three questions.
+
+Read the log for a question with a service and a window:
+
+```text
+00:15:45.254 DEBUG DispatcherServlet                        GET "/askAutoToolCall?input=how+many+error+events+in+the+checkout+service+in+the+last+15+minutes%3F", parameters={masked}
+00:15:45.254 DEBUG Assistant                                [auto] Spring AI runs every tool call. Question: how many error events in the checkout service in the last 15 minutes?
+00:15:47.501 INFO  ChatModelCompletionObservationHandler    Chat Model Completion:
+[]
+00:15:47.501 INFO  ChatModelPromptContentObservationHandler Chat Model Prompt Content:
+["You are a careful assistant. Answer in two sentences or fewer.", "how many error events in the checkout service in the last 15 minutes?"]
+00:15:47.501 DEBUG DefaultToolCallingManager                Executing tool call: countErrors
+00:15:47.503 DEBUG LogTools                                 [tool] countErrors(service=checkout, minutes=15) returned 412
+00:15:47.803 INFO  ChatModelCompletionObservationHandler    Chat Model Completion:
+["There were 412 error events in the checkout service over the last 15 minutes."]
+00:15:47.803 INFO  ChatModelPromptContentObservationHandler Chat Model Prompt Content:
+["You are a careful assistant. Answer in two sentences or fewer.", "how many error events in the checkout service in the last 15 minutes?", "", ""]
+00:15:47.804 DEBUG Assistant                                [auto] Final answer: There were 412 error events in the checkout service over the last 15 minutes.
+00:15:47.804 DEBUG DispatcherServlet                        Completed 200 OK
+```
+
+- **Two model calls for one request.** The first reply is a tool call, so its completion is `[]`.
+- **`Executing tool call: countErrors`** means Spring AI ran the tool. Your code did not.
+- **`[tool]`** shows the arguments the model chose and the result.
+- **The second prompt has four messages.** The two `""` entries are the tool call and the tool result. They hold data, not text.
 
 **Exercise:** Rename the tool, then remove its description. Compare the model's choices each time.
 

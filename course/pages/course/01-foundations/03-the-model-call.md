@@ -59,10 +59,12 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Sends one question to the chat model and returns its text reply.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class Assistant {
@@ -80,16 +82,20 @@ public class Assistant {
      * @return the model's final text reply
      */
     public String askAutoToolCall(String question) {
-        return chat.prompt()
+        log.debug("[auto] Spring AI runs every tool call. Question: {}", question);
+        String answer = chat.prompt()
                 .system(SYSTEM)
                 .user(question)
                 .call()
                 .content();
+        log.debug("[auto] Final answer: {}", answer);
+        return answer;
     }
 }
 ```
 
 - `@Service` tells Spring to create one `Assistant` at startup.
+- `@Slf4j` comes from Lombok. It adds a `log` field. Each `log.debug` line shows in the console.
 - `@RequiredArgsConstructor` comes from Lombok. It writes a constructor with one argument per `final` field. Spring calls it and passes the `ChatClient` from Step 1.
 - `.system(…)` sets the rules. `.user(…)` sets the question.
 - `.call()` sends the request. `.content()` returns the reply as a `String`.
@@ -171,6 +177,22 @@ The model has no data. It asks for the logs:
 ```text
 Please provide the logs or data you are referring to. Once you share them, I can count the error events for you.
 ```
+
+The console log shows the same run:
+
+```text
+patcherServlet                        GET "/askAutoToolCall?input=how+many+error+events%3F", parameters={masked}
+00:15:18.393 DEBUG Assistant                                [auto] Spring AI runs every tool call. Question: how many error events?
+00:15:20.872 INFO  ChatModelCompletionObservationHandler    Chat Model Completion:
+["Please provide the data or context you are referring to. I do not see any events listed in your message."]
+00:15:20.872 INFO  ChatModelPromptContentObservationHandler Chat Model Prompt Content:
+["You are a careful assistant. Answer in two sentences or fewer.", "how many error events?"]
+00:15:20.874 DEBUG Assistant                                [auto] Final answer: Please provide the data or context you are referring to. I do not see any events listed in your message.
+00:15:20.882 DEBUG DispatcherServlet                        Completed 200 OK
+```
+
+- The prompt holds two messages: the system rules and your question.
+- No `Executing tool call` line appears. The model has no tools yet.
 
 A request without `input` fails. The model is never called.
 

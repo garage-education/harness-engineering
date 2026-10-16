@@ -31,6 +31,7 @@ Add this method to `Assistant`:
  * @return the tool calls the model requested; empty when it answered in text
  */
 public List<ToolCall> askHaltToolCall(String question) {
+    log.debug("[halt] ToolCallingAdvisor is off. No tool will run. Question: {}", question);
     AssistantMessage reply = chat.prompt()
             .system(SYSTEM)
             .user(question)
@@ -40,6 +41,13 @@ public List<ToolCall> askHaltToolCall(String question) {
             .chatResponse()
             .getResult()
             .getOutput();
+    if (reply.hasToolCalls()) {
+        for (ToolCall call : reply.getToolCalls()) {
+            log.debug("[halt] Model requested {} {}. Not run.", call.name(), call.arguments());
+        }
+    } else {
+        log.debug("[halt] Model answered in text, with no tool call: {}", reply.getText());
+    }
     return reply.getToolCalls();
 }
 ```
@@ -73,6 +81,21 @@ Gemma returns one tool call. Nothing ran:
 - A tool call is data: an id, a tool name, and JSON arguments.
 - The model chose `minutes: 60`. The question gave no window. Your value will differ between runs.
 - A question that needs no tool returns `[]`. Try `input=what is a harness?`.
+
+The log ends after one model call:
+
+```text
+00:15:48.922 DEBUG DispatcherServlet                        GET "/askHaltToolCall?input=how+many+error+events+in+the+checkout+service+in+the+last+15+minutes%3F", parameters={masked}
+00:15:48.923 DEBUG Assistant                                [halt] ToolCallingAdvisor is off. No tool will run. Question: how many error events in the checkout service in the last 15 minutes?
+00:15:49.829 INFO  ChatModelCompletionObservationHandler    Chat Model Completion:
+[]
+00:15:49.830 INFO  ChatModelPromptContentObservationHandler Chat Model Prompt Content:
+["You are a careful assistant. Answer in two sentences or fewer.", "how many error events in the checkout service in the last 15 minutes?"]
+00:15:49.830 DEBUG Assistant                                [halt] Model requested countErrors {"minutes":15,"service":"checkout"}. Not run.
+00:15:49.830 DEBUG DispatcherServlet                        Completed 200 OK
+```
+
+No `Executing tool call` line and no `[tool]` line appear. The tool never ran.
 
 Your code now owns the call. It can run it, change it, or refuse it.
 
@@ -155,6 +178,7 @@ import org.springframework.stereotype.Service;
 import com.garageeducation.harness.RunResult.StopReason;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The agent loop, written by hand.
@@ -165,12 +189,14 @@ import lombok.RequiredArgsConstructor;
  * <p>{@link ChatClient} runs tools by itself through its {@code ToolCallingAdvisor}.
  * This class turns that advisor off, so the model's tool calls come back to this code.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentLoop {
 
     /** The most model calls one run can make. */
     static final int MAX_STEPS = 5;
+
 
     private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
 
@@ -189,9 +215,11 @@ public class AgentLoop {
         messages.add(new UserMessage(question));
 
         int tokens = 0;
+        log.debug("[loop] Start. Your code runs the tools. Question: {}", question);
 
         for (int step = 1; step <= MAX_STEPS; step++) {
             // 1. Send the messages to the model.
+            log.debug("[loop] Step {}/{}: sending {} messages to the model", step, MAX_STEPS, messages.size());
             ChatResponse response = chat.prompt()
                     .messages(messages)
                     .tools(logTools)
@@ -204,16 +232,20 @@ public class AgentLoop {
 
             // 2. A reply without tool calls is the answer.
             if (!reply.hasToolCalls()) {
+                log.debug("[loop] Step {}: no tool calls. Stop: FINAL_ANSWER, {} tokens. Answer: {}", step, tokens, reply.getText());
                 return new RunResult(reply.getText(), StopReason.FINAL_ANSWER, step, tokens);
             }
+            log.debug("[loop] Step {}: model requested {} tool call(s), {} tokens so far", step, reply.getToolCalls().size(), tokens);
 
             // 3. Run each tool. 4. Add the results to the messages.
             List<ToolResponse> results = new ArrayList<>();
             for (ToolCall call : reply.getToolCalls()) {
+                log.debug("[loop] Step {}: your code runs {} {}", step, call.name(), call.arguments());
                 results.add(new ToolResponse(call.id(), call.name(), runTool(call)));
             }
             messages.add(ToolResponseMessage.builder().responses(results).build());
         }
+        log.debug("[loop] Used all {} steps without a final answer. Stop: STEP_LIMIT", MAX_STEPS);
         return new RunResult(null, StopReason.STEP_LIMIT, MAX_STEPS, tokens);
     }
 
@@ -233,6 +265,7 @@ public class AgentLoop {
                 return tool.call(call.arguments());
             }
         }
+        log.warn("[loop] Model requested an unknown tool: {}", call.name());
         return "Unknown tool: " + call.name();
     }
 }
@@ -292,15 +325,41 @@ curl -G http://localhost:8080/run --data-urlencode "input=how many error events 
 {"answer":"There were 412 error events in the checkout service over the last 15 minutes.","reason":"FINAL_ANSWER","steps":2,"tokens":727}
 ```
 
+The log shows each step of your loop:
+
+```text
+00:15:50.946 DEBUG DispatcherServlet                        GET "/run?input=how+many+error+events+in+the+checkout+service+in+the+last+15+minutes%3F", parameters={masked}
+00:15:50.946 DEBUG AgentLoop                                [loop] Start. Your code runs the tools. Question: how many error events in the checkout service in the last 15 minutes?
+00:15:50.946 DEBUG AgentLoop                                [loop] Step 1/5: sending 2 messages to the model
+00:15:52.071 INFO  ChatModelCompletionObservationHandler    Chat Model Completion:
+[]
+00:15:52.071 INFO  ChatModelPromptContentObservationHandler Chat Model Prompt Content:
+["You are a careful assistant. Answer in two sentences or fewer.", "how many error events in the checkout service in the last 15 minutes?"]
+00:15:52.071 DEBUG AgentLoop                                [loop] Step 1: model requested 1 tool call(s), 263 tokens so far
+00:15:52.072 DEBUG AgentLoop                                [loop] Step 1: your code runs countErrors {"minutes":15,"service":"checkout"}
+00:15:52.073 DEBUG LogTools                                 [tool] countErrors(service=checkout, minutes=15) returned 412
+00:15:52.073 DEBUG AgentLoop                                [loop] Step 2/5: sending 4 messages to the model
+00:15:52.368 INFO  ChatModelCompletionObservationHandler    Chat Model Completion:
+["There were 412 error events in the checkout service in the last 15 minutes."]
+00:15:52.368 INFO  ChatModelPromptContentObservationHandler Chat Model Prompt Content:
+["You are a careful assistant. Answer in two sentences or fewer.", "how many error events in the checkout service in the last 15 minutes?", "", ""]
+00:15:52.368 DEBUG AgentLoop                                [loop] Step 2: no tool calls. Stop: FINAL_ANSWER, 469 tokens. Answer: There were 412 error events in the checkout service in the last 15 minutes.
+00:15:52.370 DEBUG DispatcherServlet                        Completed 200 OK
+```
+
+- **`Step 1/5: sending 2 messages`**, then **`sending 4 messages`.** The list grows by the reply and the tool result.
+- **`your code runs countErrors`** replaces Spring's `Executing tool call` line from Chapter 4.
+- **`Stop: FINAL_ANSWER`** names the reason the run ended.
+
 The Chapter 5 requests in `requests/harness.http` cover every run in this chapter.
 
 Table 5.1 compares the three endpoints for the same question.
 
-| Endpoint | Who runs the tool | Returns |
-|---|---|---|
-| `/askAutoToolCall` | Spring AI's `ToolCallingAdvisor` | The final text |
-| `/askHaltToolCall` | Nobody | The tool calls, unrun |
-| `/run` | `AgentLoop.runTools` | A `RunResult`: answer, reason, steps, and tokens |
+| Endpoint | Who runs the tool | Returns | Log tag |
+|---|---|---|---|
+| `/askAutoToolCall` | Spring AI's `ToolCallingAdvisor` | The final text | `[auto]`, then `Executing tool call` |
+| `/askHaltToolCall` | Nobody | The tool calls, unrun | `[halt] … Not run.` |
+| `/run` | `AgentLoop.runTool` | A `RunResult`: answer, reason, steps, and tokens | `[loop] Step N: …` |
 
 <p class="caption">Table 5.1. One question, three levels of control.</p>
 

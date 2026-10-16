@@ -9,6 +9,7 @@ import org.springframework.ai.chat.messages.AssistantMessage.ToolCall;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Sends one question to the chat model, with the tools in {@link LogTools}.
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
  * <p>{@code @RequiredArgsConstructor} generates a constructor for the {@code final} fields.
  * Spring calls it and passes in the {@link ChatClient} and the {@link LogTools}.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class Assistant {
@@ -41,12 +43,15 @@ public class Assistant {
      * @return the model's final text reply
      */
     public String askAutoToolCall(String question) {
-        return chat.prompt()
+        log.debug("[auto] Spring AI runs every tool call. Question: {}", question);
+        String answer = chat.prompt()
                 .system(SYSTEM)
                 .user(question)
                 .tools(logTools)
                 .call()
                 .content();
+        log.debug("[auto] Final answer: {}", answer);
+        return answer;
     }
 
     /**
@@ -59,6 +64,7 @@ public class Assistant {
      * @return the tool calls the model requested; empty when it answered in text
      */
     public List<ToolCall> askHaltToolCall(String question) {
+        log.debug("[halt] ToolCallingAdvisor is off. No tool will run. Question: {}", question);
         AssistantMessage reply = chat.prompt()
                 .system(SYSTEM)
                 .user(question)
@@ -68,6 +74,13 @@ public class Assistant {
                 .chatResponse()
                 .getResult()
                 .getOutput();
+        if (reply.hasToolCalls()) {
+            for (ToolCall call : reply.getToolCalls()) {
+                log.debug("[halt] Model requested {} {}. Not run.", call.name(), call.arguments());
+            }
+        } else {
+            log.debug("[halt] Model answered in text, with no tool call: {}", reply.getText());
+        }
         return reply.getToolCalls();
     }
 }

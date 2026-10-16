@@ -5,6 +5,9 @@
 #
 # Start LM Studio first. Start the app with ./gradlew bootRun (port 8080).
 # The replies shown in the comments come from one run with Gemma. Your wording will differ.
+#
+# Watch the app console after each request. The "Log:" lines below say what to look for.
+# Chapter 2, Table 2.1 explains each log tag.
 
 @lmstudio = http://localhost:1234/v1
 @app = http://localhost:8080
@@ -49,11 +52,13 @@ Content-Type: application/json
 ### Chapter 3 · One model call, no tools
 # Expect the model to ask for logs: it has no data yet.
 # After Chapter 4 the same request runs the tool instead.
+# Log: [auto] ... then Chat Model Prompt Content with 2 messages. No "Executing tool call" line.
 GET {{app}}/askAutoToolCall?input=how many error events?
 
 
 ### Chapter 4 · No service name: the model asks for one
 # Expect: "Please specify which service you would like to check ..."
+# Log: one model call, no "Executing tool call" line. The model asked instead of guessing.
 GET {{app}}/askAutoToolCall?input=how many error events?
 
 
@@ -63,33 +68,43 @@ GET {{app}}/askAutoToolCall?input=how many error events in search service?
 
 
 ### Chapter 4 · Checkout service: the fake data returns 412
+# Gemma sometimes asks for a time window instead. Add "in the last 15 minutes" to the question if it does.
 # Expect: "There were 412 error events in the checkout service in the last 15 minutes."
+# Log: [auto], then DefaultToolCallingManager "Executing tool call: countErrors": Spring AI ran the tool.
+#      [tool] countErrors(service=checkout, ...) returned 412, then a second model call.
 GET {{app}}/askAutoToolCall?input=how many error events in checkout service?
 
 
 ### Chapter 5 · Step 1: halt the tool call
 # Expect one tool call, unrun:
 # [{"id":"...","type":"function","name":"countErrors","arguments":"{\"minutes\":60,\"service\":\"checkout\"}"}]
+# Log: [halt] Model requested countErrors {...}. Not run.  No [tool] line: nothing ran.
 GET {{app}}/askHaltToolCall?input=how many error events in checkout service?
 
 
 ### Chapter 5 · Step 1: no tool needed
 # Expect: []
+# Log: [halt] Model answered in text, with no tool call: ...
 GET {{app}}/askHaltToolCall?input=what is a harness?
 
 
 ### Chapter 5 · Step 4: run the loop
 # Expect: {"answer":"There were 412 error events ...","reason":"FINAL_ANSWER","steps":2,"tokens":727}
+# Log: [loop] Step 1/5: sending 2 messages ... your code runs countErrors ... [tool] ... returned 412
+#      [loop] Step 2/5: sending 4 messages ... Stop: FINAL_ANSWER.  No "Executing tool call" line:
+#      your loop ran the tool, not Spring AI.
 GET {{app}}/run?input=how many error events in checkout service?
 
 
 ### Chapter 5 · Step 4: two tool calls in one step
 # Expect: {"answer":"Checkout is significantly worse ... 412 ... 3 ...","reason":"FINAL_ANSWER","steps":2,"tokens":480}
+# Log: [loop] Step 1: model requested 2 tool call(s), then one "your code runs" line per service.
 GET {{app}}/run?input=is checkout or search worse right now?
 
 
 ### Chapter 5 · Step 4: no service name
 # Expect a question back in one step: {"answer":"Please specify which service ...","reason":"FINAL_ANSWER","steps":1,...}
+# Log: [loop] Step 1: no tool calls. Stop: FINAL_ANSWER
 GET {{app}}/run?input=how many error events?
 
 
@@ -102,6 +117,9 @@ GET {{app}}/run?input=how many error events?
 #   MAX_TOKENS = 100                   -> TOKEN_BUDGET   steps 1, answer null
 #   TIMEOUT = Duration.ofMillis(1)     -> TIMEOUT        steps 1, answer null
 #   MAX_REPEATS = 1                    -> LOOP_DETECTED  steps 1, answer null
+#
+# Log: each early stop prints its reason before any tool runs, for example
+#      [loop] Step 1: 237 tokens is over MAX_TOKENS 100. Stop: TOKEN_BUDGET
 #
 # Keep the time window in the question. Without it, Gemma can ask for the window in text,
 # which ends the run as FINAL_ANSWER before any limit fires.

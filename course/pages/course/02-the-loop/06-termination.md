@@ -124,6 +124,7 @@ import org.springframework.stereotype.Service;
 import com.garageeducation.harness.RunResult.StopReason;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The agent loop, written by hand.
@@ -134,6 +135,7 @@ import lombok.RequiredArgsConstructor;
  * <p>{@link ChatClient} runs tools by itself through its {@code ToolCallingAdvisor}.
  * This class turns that advisor off, so the model's tool calls come back to this code.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentLoop {
@@ -169,9 +171,11 @@ public class AgentLoop {
         Map<String, Integer> seenCalls = new HashMap<>();
         Instant deadline = Instant.now().plus(TIMEOUT);
         int tokens = 0;
+        log.debug("[loop] Start. Your code runs the tools. Question: {}", question);
 
         for (int step = 1; step <= MAX_STEPS; step++) {
             // 1. Send the messages to the model.
+            log.debug("[loop] Step {}/{}: sending {} messages to the model", step, MAX_STEPS, messages.size());
             ChatResponse response = chat.prompt()
                     .messages(messages)
                     .tools(logTools)
@@ -184,14 +188,18 @@ public class AgentLoop {
 
             // 2. A reply without tool calls is the answer.
             if (!reply.hasToolCalls()) {
+                log.debug("[loop] Step {}: no tool calls. Stop: FINAL_ANSWER, {} tokens. Answer: {}", step, tokens, reply.getText());
                 return new RunResult(reply.getText(), StopReason.FINAL_ANSWER, step, tokens);
             }
+            log.debug("[loop] Step {}: model requested {} tool call(s), {} tokens so far", step, reply.getToolCalls().size(), tokens);
 
             // Stop rules, checked before any tool runs.
             if (tokens > MAX_TOKENS) {
+                log.debug("[loop] Step {}: {} tokens is over MAX_TOKENS {}. Stop: TOKEN_BUDGET", step, tokens, MAX_TOKENS);
                 return new RunResult(null, StopReason.TOKEN_BUDGET, step, tokens);
             }
             if (Instant.now().isAfter(deadline)) {
+                log.debug("[loop] Step {}: past the {} deadline. Stop: TIMEOUT", step, TIMEOUT);
                 return new RunResult(null, StopReason.TIMEOUT, step, tokens);
             }
             for (ToolCall call : reply.getToolCalls()) {
@@ -199,6 +207,7 @@ public class AgentLoop {
                 int count = seenCalls.getOrDefault(key, 0) + 1;
                 seenCalls.put(key, count);
                 if (count >= MAX_REPEATS) {
+                    log.debug("[loop] Step {}: {} {} requested {} times. Stop: LOOP_DETECTED", step, call.name(), call.arguments(), count);
                     return new RunResult(null, StopReason.LOOP_DETECTED, step, tokens);
                 }
             }
@@ -206,10 +215,12 @@ public class AgentLoop {
             // 3. Run each tool. 4. Add the results to the messages.
             List<ToolResponse> results = new ArrayList<>();
             for (ToolCall call : reply.getToolCalls()) {
+                log.debug("[loop] Step {}: your code runs {} {}", step, call.name(), call.arguments());
                 results.add(new ToolResponse(call.id(), call.name(), runTool(call)));
             }
             messages.add(ToolResponseMessage.builder().responses(results).build());
         }
+        log.debug("[loop] Used all {} steps without a final answer. Stop: STEP_LIMIT", MAX_STEPS);
         return new RunResult(null, StopReason.STEP_LIMIT, MAX_STEPS, tokens);
     }
 
@@ -229,6 +240,7 @@ public class AgentLoop {
                 return tool.call(call.arguments());
             }
         }
+        log.warn("[loop] Model requested an unknown tool: {}", call.name());
         return "Unknown tool: " + call.name();
     }
 }
@@ -261,6 +273,23 @@ Table 6.2 shows the results from one run with Gemma.
 | `MAX_REPEATS = 1` | `{"answer":null,"reason":"LOOP_DETECTED","steps":1,"tokens":232}` |
 
 <p class="caption">Table 6.2. One limit lowered per run, with Gemma. Token counts vary between runs.</p>
+
+Each stop logs its reason. This is the log for `MAX_TOKENS = 100`:
+
+```text
+00:16:01.359 DEBUG DispatcherServlet                        GET "/run?input=how+many+error+events+in+the+checkout+service+in+the+last+15+minutes%3F", parameters={masked}
+00:16:01.360 DEBUG AgentLoop                                [loop] Start. Your code runs the tools. Question: how many error events in the checkout service in the last 15 minutes?
+00:16:01.360 DEBUG AgentLoop                                [loop] Step 1/5: sending 2 messages to the model
+00:16:02.437 INFO  ChatModelCompletionObservationHandler    Chat Model Completion:
+[]
+00:16:02.438 INFO  ChatModelPromptContentObservationHandler Chat Model Prompt Content:
+["You are a careful assistant. Answer in two sentences or fewer.", "how many error events in the checkout service in the last 15 minutes?"]
+00:16:02.438 DEBUG AgentLoop                                [loop] Step 1: model requested 1 tool call(s), 237 tokens so far
+00:16:02.438 DEBUG AgentLoop                                [loop] Step 1: 237 tokens is over MAX_TOKENS 100. Stop: TOKEN_BUDGET
+00:16:02.440 DEBUG DispatcherServlet                        Completed 200 OK
+```
+
+The run stops after step 1. No `your code runs` line follows, so no tool ran.
 
 Put the time window in the question. Without it, Gemma can ask for the window in plain text. That reply is a `FINAL_ANSWER`, so no limit fires.
 

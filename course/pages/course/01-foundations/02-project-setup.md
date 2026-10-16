@@ -64,6 +64,7 @@ extra["lombok.version"] = "1.18.48"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.ai:spring-ai-starter-model-openai")
 
 	compileOnly("org.projectlombok:lombok")
@@ -88,6 +89,7 @@ tasks.withType<Test> {
 
 - `spring-ai-bom` pins every Spring AI module to 2.0.1.
 - `spring-boot-starter-webmvc` serves HTTP on port 8080.
+- `spring-boot-starter-actuator` turns on Micrometer observations. Spring AI uses them to log each prompt and reply.
 - `spring-ai-starter-model-openai` creates the `ChatClient.Builder`.
 - Lombok writes repeated Java code for you, such as constructors. It runs at compile time only.
 - `lombok.version` pins Lombok 1.18.48. Spring Boot 4.1.1 picks 1.18.46, which fails to compile on Java 27.
@@ -118,11 +120,44 @@ spring:
         model: google/gemma-4-12b-qat
       embedding:
         model: text-embedding-bge-m3
+    chat:
+      observations:
+        # Log every prompt sent to the model and every reply. Local and fake data only:
+        # in production these logs can contain user data.
+        log-prompt: true
+        log-completion: true
+
+logging:
+  pattern:
+    # Time, level, short class name, message. Easier to read than the default line.
+    console: "%d{HH:mm:ss.SSS} %-5level %-40logger{0} %msg%n"
+  level:
+    # Our code: one line per decision in Assistant, AgentLoop, and LogTools.
+    com.garageeducation.harness: DEBUG
+    # Each HTTP request: "GET /run?input=...", then "Completed 200 OK".
+    org.springframework.web.servlet.DispatcherServlet: DEBUG
+    # Spring AI runs a tool: "Executing tool call: countErrors" (ChatClient path only).
+    org.springframework.ai.model.tool.DefaultToolCallingManager: DEBUG
 ```
 
 - `base-url` ends in `/v1`.
 - LM Studio ignores the API key. The starter still needs a value.
 - Each model name must match an identifier in LM Studio.
+- `log-prompt` and `log-completion` print each prompt and each reply. Spring AI warns at startup, because real prompts can hold private data. This course uses fake data only.
+- `logging.level` turns on DEBUG logs for our code and three Spring classes. Table 2.1 lists what each line means.
+
+| Log line starts with | Written by | Means |
+|---|---|---|
+| `GET "/…"` and `Completed 200 OK` | Spring `DispatcherServlet` | One HTTP request starts and ends |
+| `Chat Model Prompt Content` | Spring AI observation | The messages sent to the model, as text |
+| `Chat Model Completion` | Spring AI observation | The model's reply text. `[]` means a tool call with no text. |
+| `Executing tool call` | Spring AI `DefaultToolCallingManager` | Spring AI ran a tool for you |
+| `[auto]` | `Assistant.askAutoToolCall` | The Chapter 4 path: Spring AI runs the tools |
+| `[halt]` | `Assistant.askHaltToolCall` | The Chapter 5 path: no tool runs |
+| `[loop]` | `AgentLoop.run` | One step or one stop decision of your loop |
+| `[tool]` | `LogTools.countErrors` | The tool ran, with its arguments and result |
+
+<p class="caption">Table 2.1. How to read the console log. Each chapter shows the lines its run prints.</p>
 
 List the identifiers with this request:
 

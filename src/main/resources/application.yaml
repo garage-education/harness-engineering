@@ -9,3 +9,21 @@ spring:
         model: google/gemma-4-12b-qat
       embedding:
         model: text-embedding-bge-m3
+    chat:
+      observations:
+        # Log every prompt sent to the model and every reply. Local and fake data only:
+        # in production these logs can contain user data.
+        log-prompt: true
+        log-completion: true
+
+logging:
+  pattern:
+    # Time, level, short class name, message. Easier to read than the default line.
+    console: "%d{HH:mm:ss.SSS} %-5level %-40logger{0} %msg%n"
+  level:
+    # Our code: one line per decision in Assistant, AgentLoop, and LogTools.
+    com.garageeducation.harness: DEBUG
+    # Each HTTP request: "GET /run?input=...", then "Completed 200 OK".
+    org.springframework.web.servlet.DispatcherServlet: DEBUG
+    # Spring AI runs a tool: "Executing tool call: countErrors" (ChatClient path only).
+    org.springframework.ai.model.tool.DefaultToolCallingManager: DEBUG

@@ -4,12 +4,15 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Log tools the model can call.
  *
  * <p>The model sees only the tool name, the {@link Tool} description, and each
  * {@link ToolParam} description. It never sees the method body.
  */
+@Slf4j
 @Component
 public class LogTools {
 
@@ -25,6 +28,8 @@ public class LogTools {
     @Tool(description = "Count error log events for one service in the last N minutes. Use this to check for a current error spike.")
     public int countErrors(@ToolParam(description = "Service name, for example checkout") String service,
                            @ToolParam(description = "Look-back window in minutes, from 1 to 1440") int minutes) {
-        return "checkout".equals(service) ? 412 : 3; // fake data
+        int count = "checkout".equals(service) ? 412 : 3; // fake data
+        log.debug("[tool] countErrors(service={}, minutes={}) returned {}", service, minutes, count);
+        return count;
     }
 }
