@@ -1,0 +1,65 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chapter 20: A small eval set · Agent Harness</title><link rel="stylesheet" href="../../_assets/docs.css"><style>:root{--cat-1:#ef2945;--cat-2:#ff7629;--cat-3:#7b3f98;--cat-4:#087f79;--cat-5:#2a6fdb;--cat-6:#c48a00;--cat-7:#0d2238;}</style></head><body><header class="topbar"><div class="topbar__inner"><a class="topbar__brand" href="../../index.html">Agent Harness</a><span class="topbar__title">Course</span><nav class="topbar__links"><a class="topbar__link topbar__link--active" href="../index.html">Course</a></nav><button class="topbar__menu" type="button" aria-label="Open navigation">Menu</button></div></header><div class="shell"><aside class="sidebar"><div class="sidebar__links"><ul><li><a href="../index.html">Course</a></li></ul></div><div class="sidebar__section"><span class="sidebar__name">Course</span><span class="sidebar__hint">Seven parts, twenty-five chapters. Read them in order.</span></div><ul><li class="sidebar__group"><span>Start here</span><ul><li><a href="../00-start/01-front-matter.html">Front matter</a></li><li><a href="../00-start/02-glossary.html">Glossary</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-1)"><span>Part 1: Foundations</span><ul><li><a href="../01-foundations/01-why-a-harness.html">1. Why a harness?</a></li><li><a href="../01-foundations/02-project-setup.html">2. Project setup</a></li><li><a href="../01-foundations/03-the-model-call.html">3. The model call</a></li><li><a href="../01-foundations/04-tools.html">4. Tools</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-2)"><span>Part 2: The Loop</span><ul><li><a href="../02-the-loop/05-writing-the-agent-loop-by-hand.html">5. The agent loop by hand</a></li><li><a href="../02-the-loop/06-termination.html">6. Termination</a></li><li><a href="../02-the-loop/07-guardrails.html">7. Guardrails</a></li><li><a href="../02-the-loop/08-graphs.html">8. Graphs</a></li><li><a href="../02-the-loop/09-human-in-the-loop.html">9. Human-in-the-loop</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-3)"><span>Part 3: Memory and Retrieval</span><ul><li><a href="../03-memory-and-retrieval/10-short-term-memory-with-spring-ai-session.html">10. Short-term memory</a></li><li><a href="../03-memory-and-retrieval/11-embeddings-and-hybrid-storage.html">11. Embeddings and hybrid storage</a></li><li><a href="../03-memory-and-retrieval/12-hybrid-retrieval-inside-the-loop.html">12. Hybrid retrieval</a></li><li><a href="../03-memory-and-retrieval/13-retrieval-quality.html">13. Retrieval quality</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-4)"><span>Part 4: Skills and Agents</span><ul><li><a href="../04-skills-and-agents/14-skills-as-files.html">14. Skills as files</a></li><li><a href="../04-skills-and-agents/15-skill-selection.html">15. Skill selection</a></li><li><a href="../04-skills-and-agents/16-sub-agents.html">16. Sub-agents</a></li><li><a href="../04-skills-and-agents/17-agent-selection.html">17. Agent selection</a></li><li><a href="../04-skills-and-agents/18-context-isolation.html">18. Context isolation</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-5)"><span>Part 5: Observability, Evaluation, and Cost</span><ul><li><a href="19-step-logging.html">19. Step logging</a></li><li><a class="active" href="20-a-small-eval-set.html">20. A small eval set</a></li><li><a href="21-failure-drills.html">21. Failure drills</a></li><li><a href="22-cost-optimization.html">22. Cost optimization</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-6)"><span>Part 6: Durable Execution with Temporal</span><ul><li><a href="../06-durable-execution/00-overview.html">Part 6 overview</a></li><li><a href="../06-durable-execution/23-run-state-and-messages.html">23. Run state and messages</a></li><li><a href="../06-durable-execution/24-temporal-basics-for-the-watcher.html">24. Temporal basics</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-7)"><span>Part 7: Capstone</span><ul><li><a href="../07-capstone/25-assemble-the-log-incident-watcher.html">25. Assemble the watcher</a></li></ul></li><li class="sidebar__group"><span>About this course</span><ul><li><a href="../99-about/01-progress-and-changelog.html">Progress and changelog</a></li></ul></li></ul></aside><main class="content"><ol class="breadcrumbs"><li><a href="../index.html">Course</a></li><li><span>Part 5: Observability, Evaluation, and Cost</span></li><li><span>20. A small eval set</span></li></ol><article class="doc"><h1>Chapter 20: A small eval set</h1>
+<p>An eval case has fixed input and expected properties. Check the stop reason, whether an alert posted, and required phrases. Do not check exact text, because model output varies.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "One eval case.",
+  "steps": [
+    {"label": "Read the case JSON"},
+    {"label": "Run the watcher on its fixed input"},
+    {"label": "Is the stop reason the expected one?", "no": "Fail"},
+    {"label": "Did an alert post, or not, as expected?", "no": "Fail"},
+    {"label": "Are the required phrases present?", "no": "Fail"},
+    {"label": "Pass", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 20.1. One eval case checks properties, never exact text. A case can pass with different wording on every run.
+</figcaption>
+</figure>
+<p>Write these cases first: a duplicate that should be suppressed, a critical error that needs approval, a flood that hits the rate limit, a novel error with no runbook, and an empty window that ends with no model call.</p>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Case</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>duplicate-suppressed</code></td>
+<td>A duplicate is suppressed</td>
+</tr>
+<tr class="even">
+<td><code>critical-needs-approval</code></td>
+<td>A critical error waits for approval</td>
+</tr>
+<tr class="odd">
+<td><code>flood-hits-rate-limit</code></td>
+<td>A flood hits the rate limit</td>
+</tr>
+<tr class="even">
+<td>novel error, no runbook</td>
+<td>The watcher copes with a novel error that has no runbook</td>
+</tr>
+<tr class="odd">
+<td>empty window</td>
+<td>An empty window ends with no model call</td>
+</tr>
+</tbody>
+</table></div>
+<p class="caption">
+<strong>Table 20.1.</strong> The first five cases. The last two have no case name in the code yet.
+</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">@ParameterizedTest</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">@ValueSource</span><span class="op">(</span>strings <span class="op">=</span> <span class="op">{</span><span class="st">&quot;duplicate-suppressed&quot;</span><span class="op">,</span> <span class="st">&quot;critical-needs-approval&quot;</span><span class="op">,</span> <span class="st">&quot;flood-hits-rate-limit&quot;</span><span class="op">})</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="fu">evalCase</span><span class="op">(</span><span class="bu">String</span> caseName<span class="op">)</span> <span class="kw">throws</span> <span class="bu">Exception</span> <span class="op">{</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">// read the case JSON, run the watcher, assert the expected properties</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Run the eval before every change. Use plain JUnit 5.</p>
+</article><nav class="pager"><a class="prev" href="19-step-logging.html"><small>Previous</small>19. Step logging</a><a class="next" href="21-failure-drills.html"><small>Next</small>21. Failure drills</a></nav></main><nav class="toc" aria-label="On this page"></nav></div><footer class="footer"><div class="wrap"><strong>Agent Harness</strong><span>Building an Agent Harness with Spring AI · Garage Education · generated from course/pages, do not edit the HTML by hand</span></div></footer><script src="../../_assets/docs.js"></script></body></html>

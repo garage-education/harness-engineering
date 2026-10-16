@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: harness
+  ai:
+    openai:
+      base-url: http://localhost:1234/v1
+      api-key: lm-studio
+      chat:
+        model: google/gemma-4-12b-qat
+      embedding:
+        model: text-embedding-bge-m3

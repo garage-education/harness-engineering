@@ -1,0 +1,178 @@
+---
+title: "Chapter 2: Project setup"
+sidebar_label: "2. Project setup"
+description: A Spring Boot 4.1.1 project with the Web MVC and OpenAI starters, pointed at LM Studio.
+---
+
+This chapter builds a Spring Boot 4.1.1 project that talks to LM Studio.
+
+**Objectives:**
+
+- Build the project with Gradle.
+- Point Spring AI at the Gemma and BGE-M3 models in LM Studio.
+- Confirm Gemma returns tool calls.
+
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The project and what it talks to.",
+  "nodes": [
+    {"id": "app", "type": "boundary", "x": 0, "y": 0, "w": 420, "h": 250, "label": "Spring Boot 4.1.1 app · Java 27 toolchain"},
+    {"id": "aibom", "x": 20, "y": 40, "w": 180, "label": "Spring AI BOM", "detail": "2.0.1", "tone": "muted"},
+    {"id": "web", "x": 220, "y": 40, "w": 180, "label": "Web MVC starter", "detail": "HTTP on port 8080", "tone": "muted"},
+    {"id": "openai", "x": 120, "y": 150, "w": 180, "label": "OpenAI starter", "detail": "ChatClient, embeddings", "tone": "platform"},
+    {"id": "lm", "type": "boundary", "x": 490, "y": 0, "w": 260, "h": 250, "label": "LM Studio · localhost:1234/v1"},
+    {"id": "gemma", "x": 530, "y": 50, "w": 180, "label": "Gemma", "detail": "google/gemma-4-12b-qat", "tone": "ai"},
+    {"id": "bge", "x": 530, "y": 150, "w": 180, "label": "BGE-M3", "detail": "text-embedding-bge-m3", "tone": "ai"}
+  ],
+  "edges": [
+    {"from": "openai", "to": "gemma", "label": "chat", "fromSide": "right", "toSide": "left", "animated": true},
+    {"from": "openai", "to": "bge", "label": "embed", "fromSide": "right", "toSide": "left"}
+  ]
+}
+</script>
+<figcaption>Figure 2.1. The project and the local model server. The Session and Temporal starters come in Chapters 10 and 24.</figcaption>
+</figure>
+
+## Step 1: The build file
+
+The project uses Gradle with the Kotlin DSL. Figure 2.1 shows its parts.
+
+```kotlin
+plugins {
+	java
+	id("org.springframework.boot") version "4.1.1"
+	id("io.spring.dependency-management") version "1.1.7"
+}
+
+group = "com.garageeducation"
+version = "0.0.1-SNAPSHOT"
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(27)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+extra["springAiVersion"] = "2.0.1"
+
+dependencies {
+	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.ai:spring-ai-starter-model-openai")
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+dependencyManagement {
+	imports {
+		mavenBom("org.springframework.ai:spring-ai-bom:${property("springAiVersion")}")
+	}
+}
+
+tasks.withType<Test> {
+	useJUnitPlatform()
+}
+```
+
+- `spring-ai-bom` pins every Spring AI module to 2.0.1.
+- `spring-boot-starter-webmvc` serves HTTP on port 8080.
+- `spring-ai-starter-model-openai` creates the `ChatClient.Builder`.
+- The toolchain is Java 27. Spring Boot 4.1.1 needs Java 17 or later.
+
+`settings.gradle.kts` holds one line:
+
+```kotlin
+rootProject.name = "harness"
+```
+
+## Step 2: The model settings
+
+LM Studio exposes an OpenAI-compatible API (application programming interface). The OpenAI starter calls it. Put the settings in `src/main/resources/application.yaml`.
+
+```yaml
+spring:
+  application:
+    name: harness
+  ai:
+    openai:
+      base-url: http://localhost:1234/v1
+      api-key: lm-studio
+      chat:
+        model: google/gemma-4-12b-qat
+      embedding:
+        model: text-embedding-bge-m3
+```
+
+- `base-url` ends in `/v1`.
+- LM Studio ignores the API key. The starter still needs a value.
+- Each model name must match an identifier in LM Studio.
+
+List the identifiers with this request:
+
+```bash
+curl http://localhost:1234/v1/models
+```
+
+## Step 3: The main class
+
+```java
+package com.garageeducation.harness;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/**
+ * Starts the harness.
+ *
+ * <p>Spring Boot scans this package and creates every bean in it.
+ * The OpenAI starter adds a {@code ChatClient.Builder} for LM Studio.
+ *
+ * <p>The {@code main} method is package-private and {@code static}.
+ * Java 25 and later accept this form.
+ */
+@SpringBootApplication
+public class HarnessApplication {
+
+	/**
+	 * Runs the Spring Boot application on port 8080.
+	 *
+	 * @param args command-line arguments, passed to Spring Boot
+	 */
+	static void main(String[] args) {
+		SpringApplication.run(HarnessApplication.class, args);
+	}
+
+}
+```
+
+Start the app:
+
+```bash
+./gradlew bootRun
+```
+
+On Windows, run `gradlew.bat bootRun`.
+
+## Step 4: The pre-flight check
+
+Send one request with a tool definition to Gemma. Confirm the response contains a tool call. Figure 2.2 shows the decision.
+
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "The pre-flight check.",
+  "steps": [
+    {"label": "Send one request with a tool definition to Gemma"},
+    {"label": "Does the response contain a tool call?", "no": "Do not start the course yet"},
+    {"label": "Start Chapter 3", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>Figure 2.2. The pre-flight check. Every chapter from Chapter 4 on depends on the model returning tool calls.</figcaption>
+</figure>
+
+**Summary:** The app starts on port 8080 and reaches LM Studio. Chapter 3 sends the first question.

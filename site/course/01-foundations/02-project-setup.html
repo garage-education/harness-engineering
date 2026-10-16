@@ -1,0 +1,148 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chapter 2: Project setup · Agent Harness</title><link rel="stylesheet" href="../../_assets/docs.css"><style>:root{--cat-1:#ef2945;--cat-2:#ff7629;--cat-3:#7b3f98;--cat-4:#087f79;--cat-5:#2a6fdb;--cat-6:#c48a00;--cat-7:#0d2238;}</style></head><body><header class="topbar"><div class="topbar__inner"><a class="topbar__brand" href="../../index.html">Agent Harness</a><span class="topbar__title">Course</span><nav class="topbar__links"><a class="topbar__link topbar__link--active" href="../index.html">Course</a></nav><button class="topbar__menu" type="button" aria-label="Open navigation">Menu</button></div></header><div class="shell"><aside class="sidebar"><div class="sidebar__links"><ul><li><a href="../index.html">Course</a></li></ul></div><div class="sidebar__section"><span class="sidebar__name">Course</span><span class="sidebar__hint">Seven parts, twenty-five chapters. Read them in order.</span></div><ul><li class="sidebar__group"><span>Start here</span><ul><li><a href="../00-start/01-front-matter.html">Front matter</a></li><li><a href="../00-start/02-glossary.html">Glossary</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-1)"><span>Part 1: Foundations</span><ul><li><a href="01-why-a-harness.html">1. Why a harness?</a></li><li><a class="active" href="02-project-setup.html">2. Project setup</a></li><li><a href="03-the-model-call.html">3. The model call</a></li><li><a href="04-tools.html">4. Tools</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-2)"><span>Part 2: The Loop</span><ul><li><a href="../02-the-loop/05-writing-the-agent-loop-by-hand.html">5. The agent loop by hand</a></li><li><a href="../02-the-loop/06-termination.html">6. Termination</a></li><li><a href="../02-the-loop/07-guardrails.html">7. Guardrails</a></li><li><a href="../02-the-loop/08-graphs.html">8. Graphs</a></li><li><a href="../02-the-loop/09-human-in-the-loop.html">9. Human-in-the-loop</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-3)"><span>Part 3: Memory and Retrieval</span><ul><li><a href="../03-memory-and-retrieval/10-short-term-memory-with-spring-ai-session.html">10. Short-term memory</a></li><li><a href="../03-memory-and-retrieval/11-embeddings-and-hybrid-storage.html">11. Embeddings and hybrid storage</a></li><li><a href="../03-memory-and-retrieval/12-hybrid-retrieval-inside-the-loop.html">12. Hybrid retrieval</a></li><li><a href="../03-memory-and-retrieval/13-retrieval-quality.html">13. Retrieval quality</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-4)"><span>Part 4: Skills and Agents</span><ul><li><a href="../04-skills-and-agents/14-skills-as-files.html">14. Skills as files</a></li><li><a href="../04-skills-and-agents/15-skill-selection.html">15. Skill selection</a></li><li><a href="../04-skills-and-agents/16-sub-agents.html">16. Sub-agents</a></li><li><a href="../04-skills-and-agents/17-agent-selection.html">17. Agent selection</a></li><li><a href="../04-skills-and-agents/18-context-isolation.html">18. Context isolation</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-5)"><span>Part 5: Observability, Evaluation, and Cost</span><ul><li><a href="../05-observability-evaluation-cost/19-step-logging.html">19. Step logging</a></li><li><a href="../05-observability-evaluation-cost/20-a-small-eval-set.html">20. A small eval set</a></li><li><a href="../05-observability-evaluation-cost/21-failure-drills.html">21. Failure drills</a></li><li><a href="../05-observability-evaluation-cost/22-cost-optimization.html">22. Cost optimization</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-6)"><span>Part 6: Durable Execution with Temporal</span><ul><li><a href="../06-durable-execution/00-overview.html">Part 6 overview</a></li><li><a href="../06-durable-execution/23-run-state-and-messages.html">23. Run state and messages</a></li><li><a href="../06-durable-execution/24-temporal-basics-for-the-watcher.html">24. Temporal basics</a></li></ul></li><li class="sidebar__group" data-cat style="--cat: var(--cat-7)"><span>Part 7: Capstone</span><ul><li><a href="../07-capstone/25-assemble-the-log-incident-watcher.html">25. Assemble the watcher</a></li></ul></li><li class="sidebar__group"><span>About this course</span><ul><li><a href="../99-about/01-progress-and-changelog.html">Progress and changelog</a></li></ul></li></ul></aside><main class="content"><ol class="breadcrumbs"><li><a href="../index.html">Course</a></li><li><span>Part 1: Foundations</span></li><li><span>2. Project setup</span></li></ol><article class="doc"><h1>Chapter 2: Project setup</h1>
+<p>This chapter builds a Spring Boot 4.1.1 project that talks to LM Studio.</p>
+<p><strong>Objectives:</strong></p>
+<ul>
+<li>Build the project with Gradle.</li>
+<li>Point Spring AI at the Gemma and BGE-M3 models in LM Studio.</li>
+<li>Confirm Gemma returns tool calls.</li>
+</ul>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The project and what it talks to.",
+  "nodes": [
+    {"id": "app", "type": "boundary", "x": 0, "y": 0, "w": 420, "h": 250, "label": "Spring Boot 4.1.1 app · Java 27 toolchain"},
+    {"id": "aibom", "x": 20, "y": 40, "w": 180, "label": "Spring AI BOM", "detail": "2.0.1", "tone": "muted"},
+    {"id": "web", "x": 220, "y": 40, "w": 180, "label": "Web MVC starter", "detail": "HTTP on port 8080", "tone": "muted"},
+    {"id": "openai", "x": 120, "y": 150, "w": 180, "label": "OpenAI starter", "detail": "ChatClient, embeddings", "tone": "platform"},
+    {"id": "lm", "type": "boundary", "x": 490, "y": 0, "w": 260, "h": 250, "label": "LM Studio · localhost:1234/v1"},
+    {"id": "gemma", "x": 530, "y": 50, "w": 180, "label": "Gemma", "detail": "google/gemma-4-12b-qat", "tone": "ai"},
+    {"id": "bge", "x": 530, "y": 150, "w": 180, "label": "BGE-M3", "detail": "text-embedding-bge-m3", "tone": "ai"}
+  ],
+  "edges": [
+    {"from": "openai", "to": "gemma", "label": "chat", "fromSide": "right", "toSide": "left", "animated": true},
+    {"from": "openai", "to": "bge", "label": "embed", "fromSide": "right", "toSide": "left"}
+  ]
+}
+</script>
+<figcaption>
+Figure 2.1. The project and the local model server. The Session and Temporal starters come in Chapters 10 and 24.
+</figcaption>
+</figure>
+<h2 id="step-1-the-build-file">Step 1: The build file<a class="anchor" href="#step-1-the-build-file" aria-label="Link to this section">#</a></h2>
+<p>The project uses Gradle with the Kotlin DSL. Figure 2.1 shows its parts.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>plugins {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>	java</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>	id(&quot;org.springframework.boot&quot;) version &quot;4.1.1&quot;</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>	id(&quot;io.spring.dependency-management&quot;) version &quot;1.1.7&quot;</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>group = &quot;com.garageeducation&quot;</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>version = &quot;0.0.1-SNAPSHOT&quot;</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>java {</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>	toolchain {</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>		languageVersion = JavaLanguageVersion.of(27)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>	}</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>repositories {</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>	mavenCentral()</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>extra[&quot;springAiVersion&quot;] = &quot;2.0.1&quot;</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>dependencies {</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>	implementation(&quot;org.springframework.boot:spring-boot-starter-webmvc&quot;)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>	implementation(&quot;org.springframework.ai:spring-ai-starter-model-openai&quot;)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>	testImplementation(&quot;org.springframework.boot:spring-boot-starter-test&quot;)</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>	testRuntimeOnly(&quot;org.junit.platform:junit-platform-launcher&quot;)</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>dependencyManagement {</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>	imports {</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>		mavenBom(&quot;org.springframework.ai:spring-ai-bom:${property(&quot;springAiVersion&quot;)}&quot;)</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>	}</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>tasks.withType&lt;Test&gt; {</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>	useJUnitPlatform()</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<ul>
+<li><code>spring-ai-bom</code> pins every Spring AI module to 2.0.1.</li>
+<li><code>spring-boot-starter-webmvc</code> serves HTTP on port 8080.</li>
+<li><code>spring-ai-starter-model-openai</code> creates the <code>ChatClient.Builder</code>.</li>
+<li>The toolchain is Java 27. Spring Boot 4.1.1 needs Java 17 or later.</li>
+</ul>
+<p><code>settings.gradle.kts</code> holds one line:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rootProject.name = &quot;harness&quot;</span></code></pre></div>
+<h2 id="step-2-the-model-settings">Step 2: The model settings<a class="anchor" href="#step-2-the-model-settings" aria-label="Link to this section">#</a></h2>
+<p>LM Studio exposes an OpenAI-compatible API (application programming interface). The OpenAI starter calls it. Put the settings in <code>src/main/resources/application.yaml</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>spring:</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  application:</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    name: harness</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  ai:</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    openai:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>      base-url: http://localhost:1234/v1</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>      api-key: lm-studio</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>      chat:</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        model: google/gemma-4-12b-qat</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>      embedding:</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>        model: text-embedding-bge-m3</span></code></pre></div>
+<ul>
+<li><code>base-url</code> ends in <code>/v1</code>.</li>
+<li>LM Studio ignores the API key. The starter still needs a value.</li>
+<li>Each model name must match an identifier in LM Studio.</li>
+</ul>
+<p>List the identifiers with this request:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>curl http://localhost:1234/v1/models</span></code></pre></div>
+<h2 id="step-3-the-main-class">Step 3: The main class<a class="anchor" href="#step-3-the-main-class" aria-label="Link to this section">#</a></h2>
+<div class="sourceCode" id="cb5"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">package</span> com.garageeducation.harness;</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.boot.SpringApplication;</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.boot.autoconfigure.SpringBootApplication;</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">/**</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"> * Starts the harness.</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co"> * &lt;p&gt;Spring Boot scans this package and creates every bean in it.</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"> * The OpenAI starter adds a {@code ChatClient.Builder} for LM Studio.</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co"> * &lt;p&gt;The {@code main} method is package-private and {@code static}.</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="co"> * Java 25 and later accept this form.</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"> */</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="at">@SpringBootApplication</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">class</span> HarnessApplication <span class="op">{</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>	<span class="co">/**</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="co">	 * Runs the Spring Boot application on port 8080.</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a><span class="co">	 *</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="co">	 * @param args command-line arguments, passed to Spring Boot</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="co">	 */</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>	<span class="dt">static</span> <span class="dt">void</span> <span class="fu">main</span><span class="op">(</span><span class="bu">String</span><span class="op">[]</span> args<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>		SpringApplication<span class="op">.</span><span class="fu">run</span><span class="op">(</span>HarnessApplication<span class="op">.</span><span class="kw">class</span><span class="op">,</span> args<span class="op">);</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>	<span class="op">}</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Start the app:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>./gradlew bootRun</span></code></pre></div>
+<p>On Windows, run <code>gradlew.bat bootRun</code>.</p>
+<h2 id="step-4-the-pre-flight-check">Step 4: The pre-flight check<a class="anchor" href="#step-4-the-pre-flight-check" aria-label="Link to this section">#</a></h2>
+<p>Send one request with a tool definition to Gemma. Confirm the response contains a tool call. Figure 2.2 shows the decision.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "The pre-flight check.",
+  "steps": [
+    {"label": "Send one request with a tool definition to Gemma"},
+    {"label": "Does the response contain a tool call?", "no": "Do not start the course yet"},
+    {"label": "Start Chapter 3", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 2.2. The pre-flight check. Every chapter from Chapter 4 on depends on the model returning tool calls.
+</figcaption>
+</figure>
+<p><strong>Summary:</strong> The app starts on port 8080 and reaches LM Studio. Chapter 3 sends the first question.</p>
+</article><nav class="pager"><a class="prev" href="01-why-a-harness.html"><small>Previous</small>1. Why a harness?</a><a class="next" href="03-the-model-call.html"><small>Next</small>3. The model call</a></nav></main><nav class="toc" aria-label="On this page"><a class="lvl2" href="#step-1-the-build-file">Step 1: The build file</a><a class="lvl2" href="#step-2-the-model-settings">Step 2: The model settings</a><a class="lvl2" href="#step-3-the-main-class">Step 3: The main class</a><a class="lvl2" href="#step-4-the-pre-flight-check">Step 4: The pre-flight check</a></nav></div><footer class="footer"><div class="wrap"><strong>Agent Harness</strong><span>Building an Agent Harness with Spring AI · Garage Education · generated from course/pages, do not edit the HTML by hand</span></div></footer><script src="../../_assets/docs.js"></script></body></html>

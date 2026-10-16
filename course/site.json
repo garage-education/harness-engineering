@@ -1,0 +1,25 @@
+{
+  "title": "Agent Harness",
+  "subtitle": "Course",
+  "tagline": "Build an agent harness with Spring AI, one chapter at a time.",
+  "footer": "Building an Agent Harness with Spring AI · Garage Education · generated from course/pages, do not edit the HTML by hand",
+  "theme": {
+    "--cat-1": "#ef2945",
+    "--cat-2": "#ff7629",
+    "--cat-3": "#7b3f98",
+    "--cat-4": "#087f79",
+    "--cat-5": "#2a6fdb",
+    "--cat-6": "#c48a00",
+    "--cat-7": "#0d2238"
+  },
+  "sections": [
+    {"dir": "course", "label": "Course", "hint": "Seven parts, twenty-five chapters. Read them in order."}
+  ],
+  "print": {
+    "title": "Building an Agent Harness with Spring AI",
+    "subtitle": "The Log Incident Watcher, from the first model call to durable execution",
+    "skip_sections": [],
+    "skip_pages": [],
+    "omit_headings": {}
+  }
+}

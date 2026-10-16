@@ -1,0 +1,2432 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Building an Agent Harness with Spring AI</title><style>/* Documentation house style.
+   A calm, light, editorial engineering document: navy text on white, 1px
+   cool-grey hairlines instead of cards and shadows, one teal accent for
+   "you are here", and category colours that identify a product and nothing
+   else. Motion only where it carries meaning. */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Public+Sans:wght@400;600;700&family=Sora:wght@600;700&display=swap');
+
+:root {
+  --ink: #0d2238;          /* text, headings, primary button, footer */
+  --ink-soft: #183650;     /* primary button hover */
+  --prose: #23394d;        /* body copy */
+  --muted: #526577;        /* secondary text */
+  --teal: #2ec4b6;         /* blockquote bar, hover borders, focus glow */
+  --teal-deep: #087f79;    /* active state, media flows, platform tone */
+  --link: #0b827c;
+  --orange: #ff7629;       /* focus ring, footer rule, operator tone */
+  --red: #ef2945;
+  --purple: #7b3f98;       /* AI tone, subscriber tone */
+  --cloud: #f3f7f8;        /* table heads, bands, hover backgrounds */
+  --line: #d9e1e7;         /* every hairline */
+  --line-strong: #9cacb8;  /* diagram edges, dashed boundaries */
+  --sidebar-bg: #fbfcfd;
+
+  /* Category colours: in navigation and landing elements, colour identifies a
+     product or category and nothing else. Override per site in site.json. */
+  --cat-1: var(--red);
+  --cat-2: var(--orange);
+  --cat-3: var(--purple);
+  --cat-4: var(--teal-deep);
+
+  --font-body: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-head: 'Sora', 'Public Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --radius: 10px;
+  --nav-h: 4.25rem;
+  --sidebar-w: 300px;
+  --reading-w: 920px;   /* tables, code, and diagrams use the full column */
+  --prose-w: 820px;     /* ~84 characters: paragraphs stay readable */
+  --heading-w: 760px;   /* display headings break earlier on purpose */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-h) + 1rem); }
+body {
+  margin: 0;
+  background: #fff;
+  color: var(--ink);
+  font: 16px/1.72 var(--font-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 3px;
+}
+img, svg { max-width: 100%; }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  height: var(--nav-h);
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(14px);
+}
+.topbar__inner {
+  display: flex; align-items: center; gap: 1.25rem;
+  width: min(1420px, calc(100% - 2rem)); height: 100%; margin: 0 auto;
+}
+.topbar__brand {
+  color: var(--ink); font-family: var(--font-head); font-weight: 700;
+  font-size: 1.05rem; letter-spacing: -0.02em; white-space: nowrap;
+}
+.topbar__brand img { display: block; height: 1.9rem; width: auto; }
+.topbar__brand:hover { text-decoration: none; }
+.topbar__title {
+  padding-left: 1.25rem; border-left: 1px solid var(--line);
+  color: var(--ink); font-family: var(--font-mono);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.topbar__links { display: flex; gap: 0.25rem; margin-left: auto; }
+.topbar__link {
+  position: relative; padding: 0.4rem 0.7rem;
+  color: var(--muted); font-size: 0.88rem; font-weight: 600;
+}
+.topbar__link:hover { color: var(--teal-deep); text-decoration: none; }
+.topbar__link--active { color: var(--ink); }
+.topbar__link--active::after {
+  position: absolute; right: 0.7rem; bottom: calc(-1 * (var(--nav-h) - 2.35rem) / 2 - 0.2rem); left: 0.7rem;
+  height: 3px; border-radius: 3px 3px 0 0; background: var(--ink); content: '';
+}
+.topbar__menu {
+  display: none; margin-left: auto; padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line); border-radius: 7px; background: #fff;
+  color: var(--ink); font: 600 0.85rem var(--font-body); cursor: pointer;
+}
+
+/* ---------- Docs shell: sidebar | content | on this page ---------- */
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) 15rem;
+  max-width: 1480px; margin: 0 auto; min-height: calc(100vh - var(--nav-h));
+}
+.sidebar {
+  position: sticky; top: var(--nav-h); align-self: start;
+  height: calc(100vh - var(--nav-h)); overflow-y: auto;
+  padding: 1.2rem 0.75rem 2rem;
+  border-right: 1px solid var(--line); background: var(--sidebar-bg);
+  font-size: 0.84rem;
+}
+.sidebar__section {
+  display: grid; gap: 0.25rem; margin: 0.35rem 0.65rem 1rem; padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.sidebar__name { color: var(--ink); font-family: var(--font-head); font-size: 1.05rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
+.sidebar__hint { color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
+.sidebar ul { list-style: none; margin: 0; padding: 0; }
+.sidebar ul ul { margin-left: 0.4rem; padding-left: 0.5rem; border-left: 1px solid var(--line); }
+.sidebar__group > span {
+  display: flex; align-items: center; min-height: 2.15rem; padding: 0.4rem 0.65rem;
+  color: var(--ink); font-weight: 650; line-height: 1.35;
+}
+.sidebar__group[data-cat] > span { font-family: var(--font-head); font-size: 0.86rem; }
+.sidebar__group[data-cat] > span::before {
+  flex: none; width: 0.6rem; height: 0.6rem; margin-right: 0.6rem; border-radius: 3px;
+  background: var(--cat, var(--ink)); content: '';
+}
+.sidebar a {
+  display: flex; align-items: center; min-height: 2.15rem; padding: 0.4rem 0.65rem;
+  border-radius: 7px; color: #40566a; line-height: 1.35;
+}
+.sidebar a:hover { background: #eef3f5; color: var(--ink); text-decoration: none; }
+.sidebar a.active {
+  border-left: 3px solid var(--teal-deep); border-radius: 0 7px 7px 0;
+  background: #eaf4f3; color: var(--teal-deep); font-weight: 700;
+}
+
+.content { min-width: 0; padding: 2rem clamp(1.25rem, 3vw, 3rem) 4rem; }
+.doc { max-width: var(--reading-w); color: var(--prose); }
+.doc > p, .doc > ul, .doc > ol, .doc > blockquote { max-width: var(--prose-w); }
+
+.toc {
+  position: sticky; top: calc(var(--nav-h) + 2rem); align-self: start;
+  max-height: calc(100vh - var(--nav-h) - 3rem); overflow-y: auto;
+  margin: 2rem 1rem 0 0; padding-left: 0.9rem; border-left: 1px solid var(--line);
+  font-size: 0.76rem;
+}
+.toc::before { display: block; margin-bottom: 0.7rem; color: var(--ink); content: 'On this page'; font-size: 0.74rem; font-weight: 700; }
+.toc a { display: block; padding: 0.24rem 0; color: var(--muted); line-height: 1.45; }
+.toc a.lvl3 { padding-left: 0.8rem; }
+.toc a:hover { color: var(--teal-deep); text-decoration: none; }
+.toc a.active { color: var(--teal-deep); font-weight: 700; }
+
+/* ---------- Breadcrumbs, status banner, pagination ---------- */
+.breadcrumbs { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 1.35rem; padding: 0; list-style: none; font-size: 0.8rem; }
+.breadcrumbs li:not(:last-child)::after { margin-left: 0.3rem; color: var(--line-strong); content: '›'; }
+.breadcrumbs a, .breadcrumbs span { padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--muted); }
+.breadcrumbs li:last-child span { background: var(--cloud); color: var(--ink); font-weight: 600; }
+
+.status {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.8rem;
+  margin: 0 0 1.6rem; padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line); border-left: 4px solid var(--status, var(--link)); border-radius: 8px;
+}
+.status__label { color: var(--status, var(--link)); font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.status__msg { color: var(--prose); font-size: 0.86rem; }
+.status__owner { margin-left: auto; color: var(--muted); font-size: 0.75rem; }
+.status--draft { --status: #d97706; }
+.status--reference { --status: var(--link); }
+.status--blocked { --status: #c2414f; }
+.status--internal { --status: var(--purple); }
+
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: var(--reading-w); margin-top: 3.5rem; }
+.pager a {
+  display: grid; gap: 0.2rem; padding: 0.9rem 1.1rem;
+  border: 1px solid var(--line); border-radius: var(--radius); background: #fff; color: var(--ink); font-weight: 650;
+}
+.pager a:hover { border-color: var(--teal); background: var(--cloud); text-decoration: none; }
+.pager small { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
+.pager .next { grid-column: 2; text-align: right; }
+
+/* ---------- Page typography ---------- */
+.doc h1, .doc h2, .doc h3, .doc h4 { color: var(--ink); font-family: var(--font-head); font-weight: 650; letter-spacing: -0.025em; }
+.doc h1 { max-width: var(--heading-w); margin: 0 0 1.35rem; font-size: clamp(2.15rem, 4vw, 3.2rem); line-height: 1.08; }
+.doc h2 { margin: 3.2rem 0 0.9rem; padding-top: 0.35rem; border-top: 1px solid var(--line); font-size: clamp(1.55rem, 2.6vw, 2rem); line-height: 1.2; }
+.doc h3 { margin: 2.15rem 0 0.6rem; font-size: 1.28rem; line-height: 1.3; }
+.doc h4 { margin: 1.6rem 0 0.4rem; font-size: 1.05rem; }
+.doc .lead { max-width: var(--prose-w); color: var(--muted); font-size: 1.08rem; }
+.doc strong { color: var(--ink); }
+.doc hr { margin: 2.5rem 0; border: 0; border-top: 1px solid var(--line); }
+.doc blockquote { margin: 1.2rem 0; padding: 0.35rem 0 0.35rem 1.1rem; border-left: 3px solid var(--teal); color: var(--muted); }
+.doc li + li { margin-top: 0.25rem; }
+.anchor { margin-left: 0.4rem; color: var(--line-strong); font-weight: 400; opacity: 0; }
+h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+code { padding: 0.1em 0.35em; border: 1px solid var(--line); border-radius: 5px; background: var(--cloud); color: var(--ink); font: 90% var(--font-mono); }
+pre {
+  overflow-x: auto; margin: 1.2rem 0; padding: 1rem 1.15rem;
+  border: 1px solid #263d52; border-radius: var(--radius);
+  background: #292d3e; color: #bfc7d5; font: 0.86rem/1.6 var(--font-mono);
+}
+pre code { padding: 0; border: 0; background: none; color: inherit; font-size: inherit; }
+
+.table-wrap { max-width: var(--reading-w); margin: 1.2rem 0; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); scrollbar-width: thin; }
+.doc table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.doc thead { background: var(--cloud); }
+.doc th, .doc td { padding: 0.55rem 0.85rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.doc th { color: var(--ink); font-weight: 700; white-space: nowrap; }
+.doc tbody tr:last-child td { border-bottom: 0; }
+.doc td + td, .doc th + th { border-left: 1px solid var(--line); }
+
+/* Numbered captions for tables and figures in reports: "Table 1. Outcome by caller." */
+.caption, figcaption { margin-top: 0.5rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
+.caption strong, figcaption strong { color: var(--ink); }
+
+/* ---------- Admonitions ---------- */
+.admonition {
+  max-width: var(--reading-w); margin: 1.4rem 0; padding: 0.85rem 1.1rem;
+  border: 1px solid var(--adm); border-left-width: 4px; border-radius: var(--radius);
+  background: var(--adm-bg); color: var(--prose);
+}
+.admonition > :first-child { margin-top: 0; }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition__title { display: block; margin-bottom: 0.35rem; color: var(--adm-ink); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.admonition.danger { --adm: #fa383e; --adm-bg: #ffebec; --adm-ink: #b51d22; }
+.admonition.warning, .admonition.caution { --adm: #e6a700; --adm-bg: #fff8e6; --adm-ink: #8a6100; }
+.admonition.info { --adm: #54c7ec; --adm-bg: #eef9fd; --adm-ink: #19647a; }
+.admonition.tip { --adm: #00a400; --adm-bg: #e6f6e6; --adm-ink: #0a6b0a; }
+.admonition.note { --adm: #c9cfd6; --adm-bg: #fdfdfe; --adm-ink: #474748; }
+
+/* Unknown facts are impossible to miss. */
+.needs-input {
+  padding: 0.05em 0.4em; border: 1px dashed #d97706; border-radius: 5px;
+  background: #fff7ed; color: #9a4b00; font-weight: 700; font-size: 0.92em;
+}
+
+/* ---------- Diagrams (rendered by docs.js) ---------- */
+figure { margin: 1.5rem 0 2rem; }
+.dg-canvas {
+  position: relative; overflow: hidden; width: 100%;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background-color: #fff;
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+.dg-stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.dg-edges { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.dg-node {
+  position: absolute; display: grid; align-content: center; min-height: 56px; padding: 8px 10px;
+  border: 1.5px solid var(--ink); border-radius: 8px; background: #fff;
+  color: var(--ink); font: 13px/1.3 var(--font-body); text-align: center;
+}
+.dg-node__label { font-weight: 650; }
+.dg-node__detail { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.dg-node__zoom { margin-top: 4px; color: var(--link); font-size: 10px; font-weight: 600; }
+a.dg-node { cursor: pointer; transition: box-shadow 160ms ease; }
+a.dg-node:hover { box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.35); text-decoration: none; }
+.dg-node.platform { border-color: var(--teal-deep); }
+.dg-node.operator { border-color: var(--orange); }
+.dg-node.external { border-color: var(--line-strong); border-style: dashed; }
+.dg-node.data { background: var(--cloud); }
+.dg-node.ai { border-color: var(--purple); }
+.dg-node.muted { border-color: var(--line); color: var(--muted); }
+.dg-node.isolated { border-color: var(--red); border-style: dashed; background: #fff5f6; color: var(--red); }
+.dg-boundary {
+  position: absolute; border: 1.5px dashed var(--line-strong); border-radius: 12px;
+  background: rgba(243, 247, 248, 0.55);
+}
+.dg-boundary__label { padding: 6px 10px; color: var(--muted); font: 10.5px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+.dg-edge { fill: none; stroke: var(--line-strong); stroke-width: 1.4; }
+.dg-edge.dashed { stroke-dasharray: 6 4; }
+.dg-edge.media { stroke: var(--teal-deep); stroke-width: 3; stroke-linecap: round; }
+.dg-edge.animated { stroke-dasharray: 5; animation: dg-flow 0.5s linear infinite; }
+@keyframes dg-flow { from { stroke-dashoffset: 10; } }
+.dg-edge-label rect { fill: #fff; }
+.dg-edge-label text { fill: var(--muted); font: 11px var(--font-body); }
+.dg-warning { margin-top: 0.4rem; color: #b51d22; font-size: 0.8rem; text-align: center; }
+
+.seq-scroll { overflow-x: auto; padding: 0.25rem; border: 1px solid var(--line); border-radius: var(--radius); }
+.seq svg { display: block; max-width: none; font-family: var(--font-body); }
+.seq-lifeline { stroke: var(--line-strong); stroke-dasharray: 4 4; stroke-width: 1; }
+.seq-head { fill: #fff; stroke-width: 1.5; }
+.seq-head-text { fill: var(--ink); font-size: 12px; font-weight: 650; }
+.seq-msg { fill: none; stroke: var(--ink); stroke-width: 1.5; transition: opacity 0.15s ease; }
+.seq-msg.response { stroke-dasharray: 6 4; }
+.seq-msg.media { stroke: var(--teal-deep); stroke-width: 3; stroke-linecap: round; }
+.seq-msg.active { stroke: var(--link); stroke-width: 2.5; }
+.seq-note { fill: var(--cloud); stroke: var(--line); }
+.seq-label { fill: var(--ink); font-size: 10.5px; transition: opacity 0.15s ease; }
+.seq-label.active { fill: var(--link); font-weight: 650; }
+.seq .dim { opacity: 0.3; }
+.seq .clickable { cursor: pointer; }
+.seq-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; margin-top: 0.5rem; }
+.seq-step { flex: 1 1 14rem; color: var(--muted); font-size: 0.82rem; text-align: center; }
+.seq-controls button {
+  padding: 0.3rem 0.7rem; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: #fff; color: var(--ink); font: 0.8rem var(--font-body); cursor: pointer;
+}
+.seq-controls button:disabled { cursor: default; opacity: 0.4; }
+
+.flow-chain { display: grid; justify-items: center; gap: 0; padding: 1.25rem 1rem; border: 1px solid var(--line); border-radius: var(--radius); }
+.flow-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0.75rem; width: 100%; }
+.flow-step { grid-column: 2; min-width: 14rem; padding: 0.55rem 0.9rem; border: 1.5px solid var(--ink); border-radius: 8px; background: #fff; font-size: 0.9rem; font-weight: 650; text-align: center; }
+.flow-step.platform { border-color: var(--teal-deep); color: var(--teal-deep); }
+.flow-exit { grid-column: 3; color: var(--muted); font-size: 0.82rem; }
+.flow-exit::before { margin-right: 0.4rem; color: var(--line-strong); content: '— no →'; }
+.flow-arrow { width: 2px; height: 1.4rem; background: var(--line-strong); position: relative; }
+.flow-arrow::after { position: absolute; bottom: -1px; left: -4px; border: 5px solid transparent; border-top-color: var(--line-strong); content: ''; }
+
+/* Hand-drawn sketch helpers for inline SVG */
+.sk-box { fill: #fff; stroke: var(--ink); stroke-width: 1.6; }
+.sk-box.cat-1 { stroke: var(--cat-1); } .sk-box.cat-2 { stroke: var(--cat-2); } .sk-box.cat-3 { stroke: var(--cat-3); }
+.sk-box.ai { stroke: var(--purple); stroke-dasharray: 5 4; }
+.sk-line { fill: none; stroke: var(--line-strong); stroke-width: 1.4; }
+.sk-line.media { stroke: var(--teal-deep); stroke-width: 3; stroke-linecap: round; }
+.sk-label { fill: var(--ink); font: 650 13px var(--font-body); }
+.sk-sub { fill: var(--muted); font: 12px var(--font-body); }
+
+/* ---------- Landing page ---------- */
+.landing { background: #fff; }
+.wrap { width: min(1180px, calc(100% - 3rem)); margin: 0 auto; }
+.hero {
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(13, 34, 56, 0.035) 1px, transparent 1px),
+    linear-gradient(rgba(13, 34, 56, 0.035) 1px, transparent 1px),
+    linear-gradient(160deg, #fff 25%, var(--cloud) 100%);
+  background-size: 48px 48px, 48px 48px, auto;
+}
+.hero .wrap { padding: clamp(3.5rem, 7vw, 6rem) 0 clamp(3.25rem, 6vw, 5rem); }
+.hero__eyebrow { margin: 0 0 1rem; color: var(--teal-deep); font: 600 0.74rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.hero h1 { max-width: 720px; margin: 0 0 1.25rem; color: var(--ink); font: 700 clamp(2.6rem, 5.2vw, 4.5rem)/1.02 var(--font-head); letter-spacing: -0.045em; }
+.hero__lede { max-width: 620px; margin: 0; color: var(--muted); font-size: clamp(1.02rem, 1.4vw, 1.18rem); line-height: 1.7; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
+.btn {
+  display: inline-flex; min-height: 3rem; align-items: center; justify-content: center; padding: 0.7rem 1.25rem;
+  border: 1px solid var(--ink); border-radius: 9px; font-size: 0.92rem; font-weight: 700;
+}
+.btn:hover { text-decoration: none; }
+.btn--primary { background: var(--ink); color: #fff; }
+.btn--primary:hover { background: var(--ink-soft); color: #fff; }
+.btn--secondary { background: rgba(255, 255, 255, 0.8); color: var(--ink); }
+.btn--secondary:hover { background: #fff; color: var(--teal-deep); }
+
+/* The signature element: moments on a rail, one per product or stage. */
+.timeline-wrap { margin-top: clamp(3.5rem, 6vw, 5.5rem); }
+.timeline-ends { display: flex; justify-content: space-between; margin-bottom: 0.6rem; color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.timeline { position: relative; display: grid; grid-template-columns: repeat(var(--moments, 3), minmax(0, 1fr)); gap: 2.5rem; margin: 0; padding: 1.75rem 0 0; list-style: none; }
+.timeline::before { position: absolute; top: 0; right: 0; left: 0; height: 2px; background: linear-gradient(90deg, var(--ink) 0%, var(--ink) 70%, var(--line-strong) 100%); content: ''; }
+.moment { position: relative; min-width: 0; --accent: var(--ink); }
+.moment.cat-1 { --accent: var(--cat-1); } .moment.cat-2 { --accent: var(--cat-2); } .moment.cat-3 { --accent: var(--cat-3); } .moment.cat-4 { --accent: var(--cat-4); }
+.moment::before {
+  position: absolute; top: calc(-2.25rem + 1px); left: 0; width: 1rem; height: 1rem;
+  border: 3px solid #fff; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--accent);
+  content: ''; transition: transform 160ms ease;
+}
+.moment:hover::before { transform: scale(1.2); }
+.moment a { display: grid; gap: 0.45rem; color: var(--ink); }
+.moment a:hover { text-decoration: none; }
+.moment__when { color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+.moment strong { font: 650 clamp(1.25rem, 1.8vw, 1.5rem)/1.15 var(--font-head); letter-spacing: -0.025em; transition: color 160ms ease; }
+.moment a:hover strong { color: var(--accent); }
+.moment p { max-width: 34ch; margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.6; }
+
+.section { padding: clamp(3.5rem, 6vw, 5.5rem) 0; }
+.section__head { max-width: 680px; margin-bottom: 2rem; }
+.section__head h2 { margin: 0 0 0.75rem; color: var(--ink); font: 700 clamp(1.7rem, 3vw, 2.4rem)/1.12 var(--font-head); letter-spacing: -0.03em; }
+.section__head p { margin: 0; color: var(--muted); line-height: 1.65; }
+.rows { margin: 0; padding: 0; border-top: 1px solid var(--line); list-style: none; }
+.rows li { border-bottom: 1px solid var(--line); }
+.rows a { display: grid; grid-template-columns: 13rem minmax(0, 1fr) 10.5rem; gap: 1.5rem; align-items: baseline; padding: 1.4rem 0.6rem; color: var(--ink); }
+.rows a:hover { background: var(--cloud); text-decoration: none; }
+.rows strong { font: 650 1.15rem var(--font-head); letter-spacing: -0.02em; }
+.rows span { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+.rows em { justify-self: end; color: var(--teal-deep); font-size: 0.9rem; font-style: normal; font-weight: 700; white-space: nowrap; }
+.band { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--cloud); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 2.5rem; align-items: start; }
+.card { padding: 1.75rem; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.card h3 { margin: 0 0 0.35rem; font: 650 1.2rem var(--font-head); letter-spacing: -0.02em; }
+.card p { margin: 0 0 1rem; color: var(--muted); }
+.card ol { margin: 0; padding-left: 1.2rem; }
+.card ol li::marker { color: var(--teal-deep); font-weight: 700; }
+
+/* ---------- Report layout (single document) ---------- */
+.report { max-width: 980px; margin: 0 auto; padding: 3rem clamp(1.25rem, 4vw, 3rem) 5rem; }
+.report .doc { max-width: none; }
+.report__title { margin: 0; color: var(--ink); font: 700 clamp(2rem, 4vw, 2.8rem)/1.1 var(--font-head); letter-spacing: -0.03em; }
+.report__subtitle { margin: 0.5rem 0 1.5rem; color: var(--teal-deep); font: 600 1.1rem var(--font-head); }
+.report-band { margin: 2rem 0 1.25rem; padding: 0.5rem 0.9rem; border-radius: 6px; background: var(--ink); color: #fff; font: 700 0.74rem var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.report-band.appendix { background: var(--teal-deep); }
+.report-band > * { margin: 0; }
+.sev-high { color: #c2414f; font-weight: 700; } .sev-med { color: #d97706; font-weight: 700; } .sev-low { color: var(--teal-deep); font-weight: 700; }
+.claim-ok { color: #2e7d32; font-weight: 700; } .claim-gap { color: #d97706; font-weight: 700; } .claim-bad { color: #c2414f; font-weight: 700; }
+
+/* ---------- Footer ---------- */
+.footer { border-top: 4px solid var(--orange); background: var(--ink); color: #c9d3dc; }
+.footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; padding: 2rem 0; font-size: 0.85rem; }
+.footer strong { color: #fff; font: 700 0.92rem var(--font-head); }
+.footer a { color: #fff; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1190px) { .shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); } .toc { display: none; } }
+@media (max-width: 996px) {
+  .topbar { backdrop-filter: none; }
+  .topbar__title, .topbar__links { display: none; }
+  .topbar__menu { display: block; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { position: fixed; top: var(--nav-h); left: 0; z-index: 15; width: min(20rem, 85vw); transform: translateX(-100%); transition: transform 200ms ease; }
+  body.nav-open .sidebar { transform: none; box-shadow: 0 0 0 100vmax rgba(13, 34, 56, 0.25); }
+  .sidebar__links { display: block; margin: 0 0.65rem 1rem; }
+}
+@media (min-width: 997px) { .sidebar__links { display: none; } }
+@media (max-width: 900px) {
+  .timeline { grid-template-columns: 1fr; gap: 1.75rem; padding: 0 0 0 1.75rem; }
+  .timeline::before { top: 0; bottom: 0; left: 0.45rem; right: auto; width: 2px; height: auto; background: linear-gradient(180deg, var(--ink) 0%, var(--ink) 70%, var(--line-strong) 100%); }
+  .moment::before { top: 0.35rem; left: calc(-1.75rem - 0.05rem); }
+}
+@media (max-width: 700px) {
+  .btn { width: 100%; }
+  .rows a { grid-template-columns: 1fr; gap: 0.35rem; }
+  .rows em { justify-self: start; }
+  .pager { grid-template-columns: 1fr; } .pager .next { grid-column: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .dg-edge.animated { animation: none; }
+  *, *::before, *::after { transition: none !important; }
+}
+
+/* ---------- Print: one continuous vector document ---------- */
+@page { size: A4; margin: 14mm 13mm 16mm; }
+@media print {
+  body { font-size: 10.5pt; }
+  .topbar, .sidebar, .toc, .pager, .footer, .seq-controls, .topbar__menu, .anchor { display: none !important; }
+  .shell { display: block; }
+  .content { padding: 0; }
+  .doc, .report { max-width: none; }
+  .doc h2 { break-after: avoid; }
+  figure, .table-wrap, pre, .admonition { break-inside: avoid; }
+  .dg-edge.animated { animation: none; stroke-dasharray: 5; }
+  .print-page + .print-page { break-before: page; }
+  a { color: inherit; }
+}
+</style></head><body><main class="report"><h1 class="report__title">Building an Agent Harness with Spring AI</h1><p class="report__subtitle">The Log Incident Watcher, from the first model call to durable execution</p><article class="doc"><h2 id="contents">Contents<a class="anchor" href="#contents" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><a href="#front-matter">Front matter</a>
+<ul>
+<li><a href="#glossary">Glossary</a></li>
+</ul></li>
+<li><a href="#part-1-foundations">Part 1: Foundations</a>
+<ul>
+<li><a href="#chapter-1-why-a-harness">Chapter 1: Why a harness?</a></li>
+<li><a href="#chapter-2-project-setup">Chapter 2: Project setup</a></li>
+<li><a href="#chapter-3-the-model-call">Chapter 3: The model call</a></li>
+<li><a href="#chapter-4-tools">Chapter 4: Tools</a></li>
+</ul></li>
+<li><a href="#part-2-the-loop">Part 2: The Loop</a>
+<ul>
+<li><a href="#chapter-5-writing-the-agent-loop-by-hand">Chapter 5: Writing the agent loop by hand</a></li>
+<li><a href="#chapter-6-termination">Chapter 6: Termination</a></li>
+<li><a href="#chapter-7-guardrails">Chapter 7: Guardrails</a></li>
+<li><a href="#chapter-8-graphs">Chapter 8: Graphs</a></li>
+<li><a href="#chapter-9-human-in-the-loop">Chapter 9: Human-in-the-loop</a></li>
+</ul></li>
+<li><a href="#part-3-memory-and-retrieval">Part 3: Memory and Retrieval</a>
+<ul>
+<li><a href="#chapter-10-short-term-memory-with-spring-ai-session">Chapter 10: Short-term memory with Spring AI Session</a></li>
+<li><a href="#chapter-11-embeddings-and-hybrid-storage-in-postgresql">Chapter 11: Embeddings and hybrid storage in PostgreSQL</a></li>
+<li><a href="#chapter-12-hybrid-retrieval-inside-the-loop">Chapter 12: Hybrid retrieval inside the loop</a></li>
+<li><a href="#chapter-13-retrieval-quality">Chapter 13: Retrieval quality</a></li>
+</ul></li>
+<li><a href="#part-4-skills-and-agents">Part 4: Skills and Agents</a>
+<ul>
+<li><a href="#chapter-14-skills-as-files">Chapter 14: Skills as files</a></li>
+<li><a href="#chapter-15-skill-selection">Chapter 15: Skill selection</a></li>
+<li><a href="#chapter-16-sub-agents">Chapter 16: Sub-agents</a></li>
+<li><a href="#chapter-17-agent-selection">Chapter 17: Agent selection</a></li>
+<li><a href="#chapter-18-context-isolation">Chapter 18: Context isolation</a></li>
+</ul></li>
+<li><a href="#part-5-observability-evaluation-and-cost">Part 5: Observability, Evaluation, and Cost</a>
+<ul>
+<li><a href="#chapter-19-step-logging">Chapter 19: Step logging</a></li>
+<li><a href="#chapter-20-a-small-eval-set">Chapter 20: A small eval set</a></li>
+<li><a href="#chapter-21-failure-drills">Chapter 21: Failure drills</a></li>
+<li><a href="#chapter-22-cost-optimization">Chapter 22: Cost optimization</a></li>
+</ul></li>
+<li><a href="#part-6-durable-execution-with-temporal">Part 6: Durable Execution with Temporal</a>
+<ul>
+<li><a href="#chapter-23-run-state-and-messages">Chapter 23: Run state and messages</a></li>
+<li><a href="#chapter-24-temporal-basics-for-the-watcher">Chapter 24: Temporal basics for the watcher</a></li>
+</ul></li>
+<li><a href="#part-7-capstone">Part 7: Capstone</a>
+<ul>
+<li><a href="#chapter-25-assemble-the-log-incident-watcher">Chapter 25: Assemble the Log Incident Watcher</a></li>
+</ul></li>
+<li><a href="#progress-checklist">Progress checklist</a></li>
+<li><a href="#open-items">Open items</a></li>
+<li><a href="#changelog">Changelog</a></li>
+</ul>
+<h2 id="front-matter">Front matter<a class="anchor" href="#front-matter" aria-label="Link to this section">#</a></h2>
+<p>Oct 10, 2026 · <span class="citation" data-cites="Ahmed">@Ahmed</span> Hassanien</p>
+<p>This book teaches Java engineers to build an agent harness with Spring AI. The running example is the Log Incident Watcher. Read the chapters in order. Each chapter adds one idea. Run the code in each chapter before you read the next one. All examples use fake data and run offline.</p>
+<p><strong>Versions:</strong> Spring Boot 4.1.1, Spring AI 2.0.1, Spring AI Session 0.6.0, Temporal 1.35.0. Use released versions only.</p>
+<p><strong>Local services:</strong> PostgreSQL 17 with VectorChord, BM25, and AGE. LM Studio with Gemma for chat and BGE-M3 for embeddings. A reranker container for bge-reranker-v2-m3. A Temporal dev server.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The local stack every chapter runs against.",
+  "nodes": [
+    {"id": "lm", "type": "boundary", "x": 300, "y": 0, "w": 520, "h": 120, "label": "LM Studio"},
+    {"id": "app", "x": 0, "y": 175, "w": 200, "label": "Spring Boot app", "detail": "the harness you build", "tone": "platform"},
+    {"id": "gemma", "x": 320, "y": 40, "w": 230, "label": "Gemma", "detail": "chat model", "tone": "ai"},
+    {"id": "bge", "x": 570, "y": 40, "w": 230, "label": "BGE-M3", "detail": "embeddings", "tone": "ai"},
+    {"id": "rerank", "x": 320, "y": 160, "w": 230, "label": "Reranker container", "detail": "bge-reranker-v2-m3", "tone": "ai"},
+    {"id": "pg", "x": 320, "y": 260, "w": 230, "label": "PostgreSQL 17", "detail": "VectorChord, BM25, AGE", "tone": "data"},
+    {"id": "temporal", "x": 570, "y": 260, "w": 230, "label": "Temporal dev server", "detail": "durable runs", "tone": "operator"}
+  ],
+  "edges": [
+    {"from": "app", "to": "gemma", "label": "chat", "fromSide": "top", "toSide": "left", "animated": true},
+    {"from": "app", "to": "rerank", "label": "rerank", "fromSide": "right", "toSide": "left"},
+    {"from": "app", "to": "pg", "label": "read / write", "fromSide": "bottom", "toSide": "left", "both": true}
+  ]
+}
+</script>
+<figcaption>
+Figure 0.1. The local stack. Everything runs on one machine with fake data. The figure leaves out the embedding and Temporal connections from the app; later chapters draw each one where it is used.
+</figcaption>
+</figure>
+<h3 id="glossary">Glossary<a class="anchor" href="#glossary" aria-label="Link to this section">#</a></h3>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "How the core terms fit together.",
+  "nodes": [
+    {"id": "agent", "type": "boundary", "x": 0, "y": 0, "w": 860, "h": 330, "label": "Agent = model + harness + goal"},
+    {"id": "goal", "x": 30, "y": 50, "w": 170, "label": "Goal", "detail": "what the run must achieve"},
+    {"id": "harness", "type": "boundary", "x": 230, "y": 40, "w": 400, "h": 270, "label": "Harness"},
+    {"id": "loop", "x": 250, "y": 80, "w": 170, "label": "Loop", "detail": "model call, tools, result", "tone": "platform"},
+    {"id": "term", "x": 440, "y": 80, "w": 170, "label": "Termination", "detail": "the rule that ends a run", "tone": "platform"},
+    {"id": "tools", "x": 250, "y": 170, "w": 170, "label": "Tools", "detail": "Java methods", "tone": "platform"},
+    {"id": "skills", "x": 440, "y": 170, "w": 170, "label": "Skills", "detail": "loaded only when needed", "tone": "platform"},
+    {"id": "memory", "x": 250, "y": 245, "w": 360, "label": "Memory", "detail": "short-term conversation, long-term store", "tone": "data"},
+    {"id": "model", "x": 660, "y": 80, "w": 170, "label": "Model", "detail": "text in, text out", "tone": "ai"},
+    {"id": "window", "x": 660, "y": 200, "w": 170, "label": "Context window", "detail": "measured in tokens", "tone": "muted"}
+  ],
+  "edges": [
+    {"from": "goal", "to": "loop", "label": "drives"},
+    {"from": "loop", "to": "model", "label": "prompt / reply", "fromSide": "top", "toSide": "top", "both": true, "animated": true},
+    {"from": "model", "to": "window", "label": "reads one"}
+  ]
+}
+</script>
+<figcaption>
+Figure 0.2. How the core terms fit together. Retrieval, evaluation, and durable-execution terms are left out; each has its own part of the course.
+</figcaption>
+</figure>
+<ul>
+<li><strong>Model.</strong> A large language model. It takes text in and returns text out.</li>
+<li><strong>Harness.</strong> The code around a model. It sends requests, runs tools, keeps state, and decides when to stop.</li>
+<li><strong>Agent.</strong> A model plus a harness plus a goal.</li>
+<li><strong>Tool.</strong> A Java method the model can ask the harness to run.</li>
+<li><strong>Tool call.</strong> The model's request to run a tool. It names the tool and gives arguments.</li>
+<li><strong>Loop.</strong> The cycle of model call, tool execution, and result. It ends when the run stops.</li>
+<li><strong>Termination.</strong> The rule that ends a run.</li>
+<li><strong>Context window.</strong> The text the model can read in one call. It is measured in tokens.</li>
+<li><strong>Token.</strong> A small piece of text. Providers bill by token.</li>
+<li><strong>Skill.</strong> A file of instructions for one task. The harness loads it only when needed.</li>
+<li><strong>Sub-agent.</strong> An agent that a parent agent calls as a tool.</li>
+<li><strong>Memory.</strong> Information kept across model calls. Short-term memory is the recent conversation. Long-term memory is stored outside it.</li>
+<li><strong>Embedding.</strong> A list of numbers that represents the meaning of a text.</li>
+<li><strong>Vector store.</strong> A database that finds texts with similar embeddings.</li>
+<li><strong>BM25.</strong> A keyword scoring method. It rewards rare words that appear often in a document.</li>
+<li><strong>Hybrid search.</strong> Keyword search and vector search, merged into one result list.</li>
+<li><strong>RRF (Reciprocal Rank Fusion).</strong> A way to merge ranked lists by rank position, not by score.</li>
+<li><strong>Reranker.</strong> A model that scores a query and each candidate together, then reorders the candidates.</li>
+<li><strong>RAG (retrieval-augmented generation).</strong> The harness fetches relevant documents before the model answers.</li>
+<li><strong>HITL (human-in-the-loop).</strong> A run that pauses until a person approves an action.</li>
+<li><strong>Graph.</strong> A flow of nodes and edges. A knowledge graph stores relationships between things.</li>
+<li><strong>Durable execution.</strong> A run that survives crashes and restarts because its state is stored.</li>
+<li><strong>Workflow (Temporal).</strong> The durable definition of one run.</li>
+<li><strong>Activity (Temporal).</strong> A unit of work with side effects, such as a model call. Temporal retries it.</li>
+<li><strong>Signal (Temporal).</strong> A message sent to a running workflow, such as an approval.</li>
+<li><strong>Eval.</strong> A fixed set of test inputs with expected properties. Run it before each change.</li>
+<li><strong>Prompt caching.</strong> The provider reuses work for a stable part of the prompt. It lowers cost.</li>
+</ul>
+<h2 id="part-1-foundations">Part 1: Foundations<a class="anchor" href="#part-1-foundations" aria-label="Link to this section">#</a></h2>
+<h3 id="chapter-1-why-a-harness">Chapter 1: Why a harness?<a class="anchor" href="#chapter-1-why-a-harness" aria-label="Link to this section">#</a></h3>
+<p>A model reads text and writes text. It cannot run code, read files, or remember past calls. The harness adds those abilities. It does five jobs. It sends the prompt. It reads the reply. It runs the tools the model asks for. It returns the tool results. It decides when the run stops.</p>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "One harness run: the five jobs, in order.",
+  "lifelines": [
+    {"id": "you", "label": "Engineer", "tone": "external"},
+    {"id": "harness", "label": "Harness", "tone": "platform"},
+    {"id": "model", "label": "Model", "tone": "subscriber"},
+    {"id": "tool", "label": "countErrors tool", "tone": "platform"}
+  ],
+  "messages": [
+    {"from": "you", "to": "harness", "label": "Is checkout slow?"},
+    {"from": "harness", "to": "model", "label": "Job 1: send the prompt and the tool list"},
+    {"from": "model", "to": "harness", "label": "tool call: countErrors(checkout)", "kind": "response"},
+    {"from": "harness", "to": "harness", "label": "Job 2: read the reply"},
+    {"from": "harness", "to": "tool", "label": "Job 3: run the tool"},
+    {"from": "tool", "to": "harness", "label": "412 errors", "kind": "response"},
+    {"from": "harness", "to": "model", "label": "Job 4: return the tool result"},
+    {"from": "model", "to": "harness", "label": "answer, based on the real count", "kind": "response"},
+    {"from": "harness", "to": "harness", "label": "Job 5: no more tool calls, so stop"},
+    {"from": "harness", "to": "you", "label": "answer", "kind": "response"}
+  ]
+}
+</script>
+<figcaption>
+Figure 1.1. One harness run, with each of the five jobs labelled. Use Previous and Next to step through it. The count of 412 is the fake data from Chapter 4.
+</figcaption>
+</figure>
+<p><strong>Example.</strong> Asked alone, a model can only guess whether checkout is slow. With a harness, the model calls a <code>countErrors</code> tool, reads the real count, and answers from that data.</p>
+<p><strong>Objectives:</strong> describe a model call, name the five harness jobs, and explain what the course builds.</p>
+<h3 id="chapter-2-project-setup">Chapter 2: Project setup<a class="anchor" href="#chapter-2-project-setup" aria-label="Link to this section">#</a></h3>
+<p>This chapter builds a Spring Boot 4.1.1 project that talks to LM Studio.</p>
+<p><strong>Objectives:</strong></p>
+<ul>
+<li>Build the project with Gradle.</li>
+<li>Point Spring AI at the Gemma and BGE-M3 models in LM Studio.</li>
+<li>Confirm Gemma returns tool calls.</li>
+</ul>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The project and what it talks to.",
+  "nodes": [
+    {"id": "app", "type": "boundary", "x": 0, "y": 0, "w": 420, "h": 250, "label": "Spring Boot 4.1.1 app · Java 27 toolchain"},
+    {"id": "aibom", "x": 20, "y": 40, "w": 180, "label": "Spring AI BOM", "detail": "2.0.1", "tone": "muted"},
+    {"id": "web", "x": 220, "y": 40, "w": 180, "label": "Web MVC starter", "detail": "HTTP on port 8080", "tone": "muted"},
+    {"id": "openai", "x": 120, "y": 150, "w": 180, "label": "OpenAI starter", "detail": "ChatClient, embeddings", "tone": "platform"},
+    {"id": "lm", "type": "boundary", "x": 490, "y": 0, "w": 260, "h": 250, "label": "LM Studio · localhost:1234/v1"},
+    {"id": "gemma", "x": 530, "y": 50, "w": 180, "label": "Gemma", "detail": "google/gemma-4-12b-qat", "tone": "ai"},
+    {"id": "bge", "x": 530, "y": 150, "w": 180, "label": "BGE-M3", "detail": "text-embedding-bge-m3", "tone": "ai"}
+  ],
+  "edges": [
+    {"from": "openai", "to": "gemma", "label": "chat", "fromSide": "right", "toSide": "left", "animated": true},
+    {"from": "openai", "to": "bge", "label": "embed", "fromSide": "right", "toSide": "left"}
+  ]
+}
+</script>
+<figcaption>
+Figure 2.1. The project and the local model server. The Session and Temporal starters come in Chapters 10 and 24.
+</figcaption>
+</figure>
+<h4 id="step-1-the-build-file">Step 1: The build file<a class="anchor" href="#step-1-the-build-file" aria-label="Link to this section">#</a></h4>
+<p>The project uses Gradle with the Kotlin DSL. Figure 2.1 shows its parts.</p>
+<div class="sourceCode" id="cbp1-1"><pre class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cbp1-1-1"><a href="#cbp1-1-1" aria-hidden="true" tabindex="-1"></a>plugins {</span>
+<span id="cbp1-1-2"><a href="#cbp1-1-2" aria-hidden="true" tabindex="-1"></a>	java</span>
+<span id="cbp1-1-3"><a href="#cbp1-1-3" aria-hidden="true" tabindex="-1"></a>	id(&quot;org.springframework.boot&quot;) version &quot;4.1.1&quot;</span>
+<span id="cbp1-1-4"><a href="#cbp1-1-4" aria-hidden="true" tabindex="-1"></a>	id(&quot;io.spring.dependency-management&quot;) version &quot;1.1.7&quot;</span>
+<span id="cbp1-1-5"><a href="#cbp1-1-5" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cbp1-1-6"><a href="#cbp1-1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-1-7"><a href="#cbp1-1-7" aria-hidden="true" tabindex="-1"></a>group = &quot;com.garageeducation&quot;</span>
+<span id="cbp1-1-8"><a href="#cbp1-1-8" aria-hidden="true" tabindex="-1"></a>version = &quot;0.0.1-SNAPSHOT&quot;</span>
+<span id="cbp1-1-9"><a href="#cbp1-1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-1-10"><a href="#cbp1-1-10" aria-hidden="true" tabindex="-1"></a>java {</span>
+<span id="cbp1-1-11"><a href="#cbp1-1-11" aria-hidden="true" tabindex="-1"></a>	toolchain {</span>
+<span id="cbp1-1-12"><a href="#cbp1-1-12" aria-hidden="true" tabindex="-1"></a>		languageVersion = JavaLanguageVersion.of(27)</span>
+<span id="cbp1-1-13"><a href="#cbp1-1-13" aria-hidden="true" tabindex="-1"></a>	}</span>
+<span id="cbp1-1-14"><a href="#cbp1-1-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cbp1-1-15"><a href="#cbp1-1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-1-16"><a href="#cbp1-1-16" aria-hidden="true" tabindex="-1"></a>repositories {</span>
+<span id="cbp1-1-17"><a href="#cbp1-1-17" aria-hidden="true" tabindex="-1"></a>	mavenCentral()</span>
+<span id="cbp1-1-18"><a href="#cbp1-1-18" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cbp1-1-19"><a href="#cbp1-1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-1-20"><a href="#cbp1-1-20" aria-hidden="true" tabindex="-1"></a>extra[&quot;springAiVersion&quot;] = &quot;2.0.1&quot;</span>
+<span id="cbp1-1-21"><a href="#cbp1-1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-1-22"><a href="#cbp1-1-22" aria-hidden="true" tabindex="-1"></a>dependencies {</span>
+<span id="cbp1-1-23"><a href="#cbp1-1-23" aria-hidden="true" tabindex="-1"></a>	implementation(&quot;org.springframework.boot:spring-boot-starter-webmvc&quot;)</span>
+<span id="cbp1-1-24"><a href="#cbp1-1-24" aria-hidden="true" tabindex="-1"></a>	implementation(&quot;org.springframework.ai:spring-ai-starter-model-openai&quot;)</span>
+<span id="cbp1-1-25"><a href="#cbp1-1-25" aria-hidden="true" tabindex="-1"></a>	testImplementation(&quot;org.springframework.boot:spring-boot-starter-test&quot;)</span>
+<span id="cbp1-1-26"><a href="#cbp1-1-26" aria-hidden="true" tabindex="-1"></a>	testRuntimeOnly(&quot;org.junit.platform:junit-platform-launcher&quot;)</span>
+<span id="cbp1-1-27"><a href="#cbp1-1-27" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cbp1-1-28"><a href="#cbp1-1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-1-29"><a href="#cbp1-1-29" aria-hidden="true" tabindex="-1"></a>dependencyManagement {</span>
+<span id="cbp1-1-30"><a href="#cbp1-1-30" aria-hidden="true" tabindex="-1"></a>	imports {</span>
+<span id="cbp1-1-31"><a href="#cbp1-1-31" aria-hidden="true" tabindex="-1"></a>		mavenBom(&quot;org.springframework.ai:spring-ai-bom:${property(&quot;springAiVersion&quot;)}&quot;)</span>
+<span id="cbp1-1-32"><a href="#cbp1-1-32" aria-hidden="true" tabindex="-1"></a>	}</span>
+<span id="cbp1-1-33"><a href="#cbp1-1-33" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cbp1-1-34"><a href="#cbp1-1-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-1-35"><a href="#cbp1-1-35" aria-hidden="true" tabindex="-1"></a>tasks.withType&lt;Test&gt; {</span>
+<span id="cbp1-1-36"><a href="#cbp1-1-36" aria-hidden="true" tabindex="-1"></a>	useJUnitPlatform()</span>
+<span id="cbp1-1-37"><a href="#cbp1-1-37" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<ul>
+<li><code>spring-ai-bom</code> pins every Spring AI module to 2.0.1.</li>
+<li><code>spring-boot-starter-webmvc</code> serves HTTP on port 8080.</li>
+<li><code>spring-ai-starter-model-openai</code> creates the <code>ChatClient.Builder</code>.</li>
+<li>The toolchain is Java 27. Spring Boot 4.1.1 needs Java 17 or later.</li>
+</ul>
+<p><code>settings.gradle.kts</code> holds one line:</p>
+<div class="sourceCode" id="cbp1-2"><pre class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cbp1-2-1"><a href="#cbp1-2-1" aria-hidden="true" tabindex="-1"></a>rootProject.name = &quot;harness&quot;</span></code></pre></div>
+<h4 id="step-2-the-model-settings">Step 2: The model settings<a class="anchor" href="#step-2-the-model-settings" aria-label="Link to this section">#</a></h4>
+<p>LM Studio exposes an OpenAI-compatible API (application programming interface). The OpenAI starter calls it. Put the settings in <code>src/main/resources/application.yaml</code>.</p>
+<div class="sourceCode" id="cbp1-3"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cbp1-3-1"><a href="#cbp1-3-1" aria-hidden="true" tabindex="-1"></a>spring:</span>
+<span id="cbp1-3-2"><a href="#cbp1-3-2" aria-hidden="true" tabindex="-1"></a>  application:</span>
+<span id="cbp1-3-3"><a href="#cbp1-3-3" aria-hidden="true" tabindex="-1"></a>    name: harness</span>
+<span id="cbp1-3-4"><a href="#cbp1-3-4" aria-hidden="true" tabindex="-1"></a>  ai:</span>
+<span id="cbp1-3-5"><a href="#cbp1-3-5" aria-hidden="true" tabindex="-1"></a>    openai:</span>
+<span id="cbp1-3-6"><a href="#cbp1-3-6" aria-hidden="true" tabindex="-1"></a>      base-url: http://localhost:1234/v1</span>
+<span id="cbp1-3-7"><a href="#cbp1-3-7" aria-hidden="true" tabindex="-1"></a>      api-key: lm-studio</span>
+<span id="cbp1-3-8"><a href="#cbp1-3-8" aria-hidden="true" tabindex="-1"></a>      chat:</span>
+<span id="cbp1-3-9"><a href="#cbp1-3-9" aria-hidden="true" tabindex="-1"></a>        model: google/gemma-4-12b-qat</span>
+<span id="cbp1-3-10"><a href="#cbp1-3-10" aria-hidden="true" tabindex="-1"></a>      embedding:</span>
+<span id="cbp1-3-11"><a href="#cbp1-3-11" aria-hidden="true" tabindex="-1"></a>        model: text-embedding-bge-m3</span></code></pre></div>
+<ul>
+<li><code>base-url</code> ends in <code>/v1</code>.</li>
+<li>LM Studio ignores the API key. The starter still needs a value.</li>
+<li>Each model name must match an identifier in LM Studio.</li>
+</ul>
+<p>List the identifiers with this request:</p>
+<div class="sourceCode" id="cbp1-4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cbp1-4-1"><a href="#cbp1-4-1" aria-hidden="true" tabindex="-1"></a>curl http://localhost:1234/v1/models</span></code></pre></div>
+<h4 id="step-3-the-main-class">Step 3: The main class<a class="anchor" href="#step-3-the-main-class" aria-label="Link to this section">#</a></h4>
+<div class="sourceCode" id="cbp1-5"><pre class="sourceCode java"><code class="sourceCode java"><span id="cbp1-5-1"><a href="#cbp1-5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">package</span> com.garageeducation.harness;</span>
+<span id="cbp1-5-2"><a href="#cbp1-5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-5-3"><a href="#cbp1-5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.boot.SpringApplication;</span>
+<span id="cbp1-5-4"><a href="#cbp1-5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.boot.autoconfigure.SpringBootApplication;</span>
+<span id="cbp1-5-5"><a href="#cbp1-5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-5-6"><a href="#cbp1-5-6" aria-hidden="true" tabindex="-1"></a><span class="co">/**</span></span>
+<span id="cbp1-5-7"><a href="#cbp1-5-7" aria-hidden="true" tabindex="-1"></a><span class="co"> * Starts the harness.</span></span>
+<span id="cbp1-5-8"><a href="#cbp1-5-8" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cbp1-5-9"><a href="#cbp1-5-9" aria-hidden="true" tabindex="-1"></a><span class="co"> * &lt;p&gt;Spring Boot scans this package and creates every bean in it.</span></span>
+<span id="cbp1-5-10"><a href="#cbp1-5-10" aria-hidden="true" tabindex="-1"></a><span class="co"> * The OpenAI starter adds a {@code ChatClient.Builder} for LM Studio.</span></span>
+<span id="cbp1-5-11"><a href="#cbp1-5-11" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cbp1-5-12"><a href="#cbp1-5-12" aria-hidden="true" tabindex="-1"></a><span class="co"> * &lt;p&gt;The {@code main} method is package-private and {@code static}.</span></span>
+<span id="cbp1-5-13"><a href="#cbp1-5-13" aria-hidden="true" tabindex="-1"></a><span class="co"> * Java 25 and later accept this form.</span></span>
+<span id="cbp1-5-14"><a href="#cbp1-5-14" aria-hidden="true" tabindex="-1"></a><span class="co"> */</span></span>
+<span id="cbp1-5-15"><a href="#cbp1-5-15" aria-hidden="true" tabindex="-1"></a><span class="at">@SpringBootApplication</span></span>
+<span id="cbp1-5-16"><a href="#cbp1-5-16" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">class</span> HarnessApplication <span class="op">{</span></span>
+<span id="cbp1-5-17"><a href="#cbp1-5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-5-18"><a href="#cbp1-5-18" aria-hidden="true" tabindex="-1"></a>	<span class="co">/**</span></span>
+<span id="cbp1-5-19"><a href="#cbp1-5-19" aria-hidden="true" tabindex="-1"></a><span class="co">	 * Runs the Spring Boot application on port 8080.</span></span>
+<span id="cbp1-5-20"><a href="#cbp1-5-20" aria-hidden="true" tabindex="-1"></a><span class="co">	 *</span></span>
+<span id="cbp1-5-21"><a href="#cbp1-5-21" aria-hidden="true" tabindex="-1"></a><span class="co">	 * @param args command-line arguments, passed to Spring Boot</span></span>
+<span id="cbp1-5-22"><a href="#cbp1-5-22" aria-hidden="true" tabindex="-1"></a><span class="co">	 */</span></span>
+<span id="cbp1-5-23"><a href="#cbp1-5-23" aria-hidden="true" tabindex="-1"></a>	<span class="dt">static</span> <span class="dt">void</span> <span class="fu">main</span><span class="op">(</span><span class="bu">String</span><span class="op">[]</span> args<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-5-24"><a href="#cbp1-5-24" aria-hidden="true" tabindex="-1"></a>		SpringApplication<span class="op">.</span><span class="fu">run</span><span class="op">(</span>HarnessApplication<span class="op">.</span><span class="kw">class</span><span class="op">,</span> args<span class="op">);</span></span>
+<span id="cbp1-5-25"><a href="#cbp1-5-25" aria-hidden="true" tabindex="-1"></a>	<span class="op">}</span></span>
+<span id="cbp1-5-26"><a href="#cbp1-5-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-5-27"><a href="#cbp1-5-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Start the app:</p>
+<div class="sourceCode" id="cbp1-6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cbp1-6-1"><a href="#cbp1-6-1" aria-hidden="true" tabindex="-1"></a>./gradlew bootRun</span></code></pre></div>
+<p>On Windows, run <code>gradlew.bat bootRun</code>.</p>
+<h4 id="step-4-the-pre-flight-check">Step 4: The pre-flight check<a class="anchor" href="#step-4-the-pre-flight-check" aria-label="Link to this section">#</a></h4>
+<p>Send one request with a tool definition to Gemma. Confirm the response contains a tool call. Figure 2.2 shows the decision.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "The pre-flight check.",
+  "steps": [
+    {"label": "Send one request with a tool definition to Gemma"},
+    {"label": "Does the response contain a tool call?", "no": "Do not start the course yet"},
+    {"label": "Start Chapter 3", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 2.2. The pre-flight check. Every chapter from Chapter 4 on depends on the model returning tool calls.
+</figcaption>
+</figure>
+<p><strong>Summary:</strong> The app starts on port 8080 and reaches LM Studio. Chapter 3 sends the first question.</p>
+<h3 id="chapter-3-the-model-call">Chapter 3: The model call<a class="anchor" href="#chapter-3-the-model-call" aria-label="Link to this section">#</a></h3>
+<p>This chapter sends one question to Gemma and returns its text reply.</p>
+<p><strong>Objectives:</strong></p>
+<ul>
+<li>Write the <code>Assistant</code> service.</li>
+<li>Expose it over HTTP with <code>TestController</code>.</li>
+<li>See what the model answers without tools.</li>
+</ul>
+<h4 id="step-1-the-assistant">Step 1: The Assistant<a class="anchor" href="#step-1-the-assistant" aria-label="Link to this section">#</a></h4>
+<div class="sourceCode" id="cbp1-7"><pre class="sourceCode java"><code class="sourceCode java"><span id="cbp1-7-1"><a href="#cbp1-7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">package</span> com.garageeducation.harness;</span>
+<span id="cbp1-7-2"><a href="#cbp1-7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-7-3"><a href="#cbp1-7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.ai.chat.client.ChatClient;</span>
+<span id="cbp1-7-4"><a href="#cbp1-7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.stereotype.Service;</span>
+<span id="cbp1-7-5"><a href="#cbp1-7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-7-6"><a href="#cbp1-7-6" aria-hidden="true" tabindex="-1"></a><span class="co">/**</span></span>
+<span id="cbp1-7-7"><a href="#cbp1-7-7" aria-hidden="true" tabindex="-1"></a><span class="co"> * Sends one question to the chat model and returns its text reply.</span></span>
+<span id="cbp1-7-8"><a href="#cbp1-7-8" aria-hidden="true" tabindex="-1"></a><span class="co"> */</span></span>
+<span id="cbp1-7-9"><a href="#cbp1-7-9" aria-hidden="true" tabindex="-1"></a><span class="at">@Service</span></span>
+<span id="cbp1-7-10"><a href="#cbp1-7-10" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">class</span> Assistant <span class="op">{</span></span>
+<span id="cbp1-7-11"><a href="#cbp1-7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-7-12"><a href="#cbp1-7-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="dt">final</span> ChatClient chat<span class="op">;</span></span>
+<span id="cbp1-7-13"><a href="#cbp1-7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-7-14"><a href="#cbp1-7-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cbp1-7-15"><a href="#cbp1-7-15" aria-hidden="true" tabindex="-1"></a><span class="co">     * Builds the client from the builder that Spring Boot provides.</span></span>
+<span id="cbp1-7-16"><a href="#cbp1-7-16" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-7-17"><a href="#cbp1-7-17" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param builder the {@link ChatClient.Builder} from the OpenAI starter</span></span>
+<span id="cbp1-7-18"><a href="#cbp1-7-18" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cbp1-7-19"><a href="#cbp1-7-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="fu">Assistant</span><span class="op">(</span>ChatClient<span class="op">.</span><span class="fu">Builder</span> builder<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-7-20"><a href="#cbp1-7-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">this</span><span class="op">.</span><span class="fu">chat</span> <span class="op">=</span> builder<span class="op">.</span><span class="fu">build</span><span class="op">();</span></span>
+<span id="cbp1-7-21"><a href="#cbp1-7-21" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cbp1-7-22"><a href="#cbp1-7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-7-23"><a href="#cbp1-7-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cbp1-7-24"><a href="#cbp1-7-24" aria-hidden="true" tabindex="-1"></a><span class="co">     * Asks the model one question.</span></span>
+<span id="cbp1-7-25"><a href="#cbp1-7-25" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-7-26"><a href="#cbp1-7-26" aria-hidden="true" tabindex="-1"></a><span class="co">     * &lt;p&gt;The system message limits the reply to two sentences.</span></span>
+<span id="cbp1-7-27"><a href="#cbp1-7-27" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-7-28"><a href="#cbp1-7-28" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param question the user's question, in plain text</span></span>
+<span id="cbp1-7-29"><a href="#cbp1-7-29" aria-hidden="true" tabindex="-1"></a><span class="co">     * @return the model's final text reply</span></span>
+<span id="cbp1-7-30"><a href="#cbp1-7-30" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cbp1-7-31"><a href="#cbp1-7-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="bu">String</span> <span class="fu">ask</span><span class="op">(</span><span class="bu">String</span> question<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-7-32"><a href="#cbp1-7-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> chat<span class="op">.</span><span class="fu">prompt</span><span class="op">()</span></span>
+<span id="cbp1-7-33"><a href="#cbp1-7-33" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">system</span><span class="op">(</span><span class="st">&quot;You are a careful assistant. Answer in two sentences or fewer.&quot;</span><span class="op">)</span></span>
+<span id="cbp1-7-34"><a href="#cbp1-7-34" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">user</span><span class="op">(</span>question<span class="op">)</span></span>
+<span id="cbp1-7-35"><a href="#cbp1-7-35" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">call</span><span class="op">()</span></span>
+<span id="cbp1-7-36"><a href="#cbp1-7-36" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">content</span><span class="op">();</span></span>
+<span id="cbp1-7-37"><a href="#cbp1-7-37" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cbp1-7-38"><a href="#cbp1-7-38" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<ul>
+<li>Spring Boot creates <code>ChatClient.Builder</code> from the OpenAI starter.</li>
+<li><code>.system(…)</code> sets the rules. <code>.user(…)</code> sets the question.</li>
+<li><code>.call()</code> sends the request. <code>.content()</code> returns the reply as a <code>String</code>.</li>
+<li>Your code never builds the HTTP request. Figure 3.1 shows the call.</li>
+</ul>
+<h4 id="step-2-the-controller">Step 2: The controller<a class="anchor" href="#step-2-the-controller" aria-label="Link to this section">#</a></h4>
+<div class="sourceCode" id="cbp1-8"><pre class="sourceCode java"><code class="sourceCode java"><span id="cbp1-8-1"><a href="#cbp1-8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">package</span> com.garageeducation.harness;</span>
+<span id="cbp1-8-2"><a href="#cbp1-8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-8-3"><a href="#cbp1-8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.web.bind.annotation.GetMapping;</span>
+<span id="cbp1-8-4"><a href="#cbp1-8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.web.bind.annotation.RequestParam;</span>
+<span id="cbp1-8-5"><a href="#cbp1-8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.web.bind.annotation.RestController;</span>
+<span id="cbp1-8-6"><a href="#cbp1-8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-8-7"><a href="#cbp1-8-7" aria-hidden="true" tabindex="-1"></a><span class="co">/**</span></span>
+<span id="cbp1-8-8"><a href="#cbp1-8-8" aria-hidden="true" tabindex="-1"></a><span class="co"> * Exposes {@link Assistant} over HTTP for manual tests.</span></span>
+<span id="cbp1-8-9"><a href="#cbp1-8-9" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cbp1-8-10"><a href="#cbp1-8-10" aria-hidden="true" tabindex="-1"></a><span class="co"> * &lt;p&gt;Example: {@code GET http://localhost:8080/?input=how many error events in checkout service?}</span></span>
+<span id="cbp1-8-11"><a href="#cbp1-8-11" aria-hidden="true" tabindex="-1"></a><span class="co"> */</span></span>
+<span id="cbp1-8-12"><a href="#cbp1-8-12" aria-hidden="true" tabindex="-1"></a><span class="at">@RestController</span></span>
+<span id="cbp1-8-13"><a href="#cbp1-8-13" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">class</span> TestController <span class="op">{</span></span>
+<span id="cbp1-8-14"><a href="#cbp1-8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-8-15"><a href="#cbp1-8-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="dt">final</span> Assistant assistant<span class="op">;</span></span>
+<span id="cbp1-8-16"><a href="#cbp1-8-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-8-17"><a href="#cbp1-8-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cbp1-8-18"><a href="#cbp1-8-18" aria-hidden="true" tabindex="-1"></a><span class="co">     * Creates the controller.</span></span>
+<span id="cbp1-8-19"><a href="#cbp1-8-19" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-8-20"><a href="#cbp1-8-20" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param assistant the assistant that answers each request</span></span>
+<span id="cbp1-8-21"><a href="#cbp1-8-21" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cbp1-8-22"><a href="#cbp1-8-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="fu">TestController</span><span class="op">(</span>Assistant assistant<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-8-23"><a href="#cbp1-8-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">this</span><span class="op">.</span><span class="fu">assistant</span> <span class="op">=</span> assistant<span class="op">;</span></span>
+<span id="cbp1-8-24"><a href="#cbp1-8-24" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cbp1-8-25"><a href="#cbp1-8-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-8-26"><a href="#cbp1-8-26" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cbp1-8-27"><a href="#cbp1-8-27" aria-hidden="true" tabindex="-1"></a><span class="co">     * Sends the {@code input} query parameter to the model.</span></span>
+<span id="cbp1-8-28"><a href="#cbp1-8-28" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-8-29"><a href="#cbp1-8-29" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param input the question; the request fails without it</span></span>
+<span id="cbp1-8-30"><a href="#cbp1-8-30" aria-hidden="true" tabindex="-1"></a><span class="co">     * @return the model's text reply</span></span>
+<span id="cbp1-8-31"><a href="#cbp1-8-31" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cbp1-8-32"><a href="#cbp1-8-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">@GetMapping</span><span class="op">(</span><span class="st">&quot;/&quot;</span><span class="op">)</span></span>
+<span id="cbp1-8-33"><a href="#cbp1-8-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="bu">String</span> <span class="fu">test</span><span class="op">(</span><span class="at">@RequestParam</span> <span class="bu">String</span> input<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-8-34"><a href="#cbp1-8-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> assistant<span class="op">.</span><span class="fu">ask</span><span class="op">(</span>input<span class="op">);</span></span>
+<span id="cbp1-8-35"><a href="#cbp1-8-35" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cbp1-8-36"><a href="#cbp1-8-36" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><code>GET /</code> reads the <code>input</code> parameter and returns the model's reply.</p>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "GET /?input=…: one model call.",
+  "lifelines": [
+    {"id": "http", "label": "TestController", "tone": "platform"},
+    {"id": "code", "label": "Assistant.ask", "tone": "platform"},
+    {"id": "client", "label": "ChatClient", "tone": "platform"},
+    {"id": "model", "label": "Gemma", "tone": "subscriber"}
+  ],
+  "messages": [
+    {"from": "http", "to": "code", "label": "ask(input)"},
+    {"from": "code", "to": "client", "label": "prompt().system(…).user(question)"},
+    {"from": "client", "to": "model", "label": ".call(): request in the provider format"},
+    {"from": "model", "to": "client", "label": "reply text", "kind": "response"},
+    {"from": "client", "to": "code", "label": ".content(): a String", "kind": "response"},
+    {"from": "code", "to": "http", "label": "reply text", "kind": "response"}
+  ]
+}
+</script>
+<figcaption>
+Figure 3.1. One model call. No tools are attached, so the model answers from its own text.
+</figcaption>
+</figure>
+<h4 id="step-3-run-the-first-call">Step 3: Run the first call<a class="anchor" href="#step-3-run-the-first-call" aria-label="Link to this section">#</a></h4>
+<p>Restart the app. Send a question:</p>
+<div class="sourceCode" id="cbp1-9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cbp1-9-1"><a href="#cbp1-9-1" aria-hidden="true" tabindex="-1"></a>curl -G http://localhost:8080/ --data-urlencode &quot;input=how many error events?&quot;</span></code></pre></div>
+<p>The model has no data. It asks for the logs:</p>
+<pre><code>Please provide the logs or data you are referring to. Once you share them, I can count the error events for you.</code></pre>
+<p>A request without <code>input</code> fails. The model is never called.</p>
+<p><strong>Summary:</strong> One question reaches Gemma and returns text. The model cannot read logs yet. Chapter 4 gives it a tool.</p>
+<h3 id="chapter-4-tools">Chapter 4: Tools<a class="anchor" href="#chapter-4-tools" aria-label="Link to this section">#</a></h3>
+<p>This chapter gives the model one tool to count error events.</p>
+<p><strong>Objectives:</strong></p>
+<ul>
+<li>Write <code>countErrors</code> as a Spring AI tool.</li>
+<li>Attach it to the <code>Assistant</code>.</li>
+<li>Compare replies with and without the tool.</li>
+</ul>
+<p>A tool is a Java method. The model chooses tools from their names and descriptions alone. A vague description causes wrong choices.</p>
+<h4 id="step-1-the-tool">Step 1: The tool<a class="anchor" href="#step-1-the-tool" aria-label="Link to this section">#</a></h4>
+<div class="sourceCode" id="cbp1-11"><pre class="sourceCode java"><code class="sourceCode java"><span id="cbp1-11-1"><a href="#cbp1-11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">package</span> com.garageeducation.harness;</span>
+<span id="cbp1-11-2"><a href="#cbp1-11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-11-3"><a href="#cbp1-11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.ai.tool.annotation.Tool;</span>
+<span id="cbp1-11-4"><a href="#cbp1-11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.ai.tool.annotation.ToolParam;</span>
+<span id="cbp1-11-5"><a href="#cbp1-11-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.stereotype.Component;</span>
+<span id="cbp1-11-6"><a href="#cbp1-11-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-11-7"><a href="#cbp1-11-7" aria-hidden="true" tabindex="-1"></a><span class="co">/**</span></span>
+<span id="cbp1-11-8"><a href="#cbp1-11-8" aria-hidden="true" tabindex="-1"></a><span class="co"> * Log tools the model can call.</span></span>
+<span id="cbp1-11-9"><a href="#cbp1-11-9" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cbp1-11-10"><a href="#cbp1-11-10" aria-hidden="true" tabindex="-1"></a><span class="co"> * &lt;p&gt;The model sees only the tool name, the {@link Tool} description, and each</span></span>
+<span id="cbp1-11-11"><a href="#cbp1-11-11" aria-hidden="true" tabindex="-1"></a><span class="co"> * {@link ToolParam} description. It never sees the method body.</span></span>
+<span id="cbp1-11-12"><a href="#cbp1-11-12" aria-hidden="true" tabindex="-1"></a><span class="co"> */</span></span>
+<span id="cbp1-11-13"><a href="#cbp1-11-13" aria-hidden="true" tabindex="-1"></a><span class="at">@Component</span></span>
+<span id="cbp1-11-14"><a href="#cbp1-11-14" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">class</span> LogTools <span class="op">{</span></span>
+<span id="cbp1-11-15"><a href="#cbp1-11-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-11-16"><a href="#cbp1-11-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cbp1-11-17"><a href="#cbp1-11-17" aria-hidden="true" tabindex="-1"></a><span class="co">     * Counts error log events for one service.</span></span>
+<span id="cbp1-11-18"><a href="#cbp1-11-18" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-11-19"><a href="#cbp1-11-19" aria-hidden="true" tabindex="-1"></a><span class="co">     * &lt;p&gt;The data is fake. The {@code checkout} service returns 412. Every other service returns 3.</span></span>
+<span id="cbp1-11-20"><a href="#cbp1-11-20" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-11-21"><a href="#cbp1-11-21" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param service the service name, for example {@code checkout}</span></span>
+<span id="cbp1-11-22"><a href="#cbp1-11-22" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param minutes the look-back window in minutes, from 1 to 1440; the fake data ignores it</span></span>
+<span id="cbp1-11-23"><a href="#cbp1-11-23" aria-hidden="true" tabindex="-1"></a><span class="co">     * @return the number of error events</span></span>
+<span id="cbp1-11-24"><a href="#cbp1-11-24" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cbp1-11-25"><a href="#cbp1-11-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">@Tool</span><span class="op">(</span>description <span class="op">=</span> <span class="st">&quot;Count error log events for one service in the last N minutes. Use this to check for a current error spike.&quot;</span><span class="op">)</span></span>
+<span id="cbp1-11-26"><a href="#cbp1-11-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="dt">int</span> <span class="fu">countErrors</span><span class="op">(</span><span class="at">@ToolParam</span><span class="op">(</span>description <span class="op">=</span> <span class="st">&quot;Service name, for example checkout&quot;</span><span class="op">)</span> <span class="bu">String</span> service<span class="op">,</span></span>
+<span id="cbp1-11-27"><a href="#cbp1-11-27" aria-hidden="true" tabindex="-1"></a>                           <span class="at">@ToolParam</span><span class="op">(</span>description <span class="op">=</span> <span class="st">&quot;Look-back window in minutes, from 1 to 1440&quot;</span><span class="op">)</span> <span class="dt">int</span> minutes<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-11-28"><a href="#cbp1-11-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">&quot;checkout&quot;</span><span class="op">.</span><span class="fu">equals</span><span class="op">(</span>service<span class="op">)</span> <span class="op">?</span> <span class="dv">412</span> <span class="op">:</span> <span class="dv">3</span><span class="op">;</span> <span class="co">// fake data</span></span>
+<span id="cbp1-11-29"><a href="#cbp1-11-29" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cbp1-11-30"><a href="#cbp1-11-30" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<ul>
+<li><code>@Tool</code> names the method as a tool. Its description tells the model when to use it.</li>
+<li><code>@ToolParam</code> describes each argument. The model fills them in.</li>
+<li><code>@Component</code> makes <code>LogTools</code> a bean, so Spring can inject it.</li>
+</ul>
+<p>Figure 4.1 shows what the model sees.</p>
+<figure class="sketch">
+<svg viewBox="0 0 880 300" role="img" aria-label="What the model sees of a tool, and what it never sees">
+<style>.sk-code{fill:#23394d;font:12px "IBM Plex Mono",ui-monospace,monospace}.sk-box.seen{stroke:#087f79}.sk-box.unseen{stroke:#9cacb8;stroke-dasharray:5 4}</style>
+<rect class="sk-box seen" x="10" y="10" width="520" height="280" rx="10"/>
+<text class="sk-label" x="30" y="42">What the model sees</text>
+<text class="sk-sub" x="30" y="78">name</text>
+<text class="sk-code" x="150" y="78">countErrors</text>
+<text class="sk-sub" x="30" y="112">description</text>
+<text class="sk-code" x="150" y="112">Count error log events for one service</text>
+<text class="sk-code" x="150" y="132">in the last N minutes. Use this to check</text>
+<text class="sk-code" x="150" y="152">for a current error spike.</text>
+<text class="sk-sub" x="30" y="188">service</text>
+<text class="sk-code" x="150" y="188">Service name, for example checkout</text>
+<text class="sk-sub" x="30" y="222">minutes</text>
+<text class="sk-code" x="150" y="222">Look-back window in minutes, from 1 to 1440</text>
+<text class="sk-sub" x="30" y="268">This is all it has to choose with.</text>
+<rect class="sk-box unseen" x="560" y="10" width="310" height="280" rx="10"/>
+<text class="sk-label" x="580" y="42">What it never sees</text>
+<text class="sk-sub" x="580" y="78">the method body</text>
+<text class="sk-code" x="580" y="112">return "checkout".equals(service)</text>
+<text class="sk-code" x="580" y="132">    ? 412 : 3; // fake data</text>
+<text class="sk-sub" x="580" y="188">the class name</text>
+<text class="sk-code" x="580" y="222">LogTools</text>
+</svg>
+<figcaption>
+Figure 4.1. A tool, as the model sees it. A vague description on the left means a wrong choice, however good the code on the right is.
+</figcaption>
+</figure>
+<h4 id="step-2-attach-the-tool">Step 2: Attach the tool<a class="anchor" href="#step-2-attach-the-tool" aria-label="Link to this section">#</a></h4>
+<p>Inject <code>LogTools</code> into the <code>Assistant</code>. Pass it to <code>.tools(logTools)</code> on the prompt. This is the full file in the repository:</p>
+<div class="sourceCode" id="cbp1-12"><pre class="sourceCode java"><code class="sourceCode java"><span id="cbp1-12-1"><a href="#cbp1-12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">package</span> com.garageeducation.harness;</span>
+<span id="cbp1-12-2"><a href="#cbp1-12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-12-3"><a href="#cbp1-12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.ai.chat.client.ChatClient;</span>
+<span id="cbp1-12-4"><a href="#cbp1-12-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org.springframework.stereotype.Service;</span>
+<span id="cbp1-12-5"><a href="#cbp1-12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-12-6"><a href="#cbp1-12-6" aria-hidden="true" tabindex="-1"></a><span class="co">/**</span></span>
+<span id="cbp1-12-7"><a href="#cbp1-12-7" aria-hidden="true" tabindex="-1"></a><span class="co"> * Sends one question to the chat model and returns its text reply.</span></span>
+<span id="cbp1-12-8"><a href="#cbp1-12-8" aria-hidden="true" tabindex="-1"></a><span class="co"> *</span></span>
+<span id="cbp1-12-9"><a href="#cbp1-12-9" aria-hidden="true" tabindex="-1"></a><span class="co"> * &lt;p&gt;The model can call the tools in {@link LogTools}.</span></span>
+<span id="cbp1-12-10"><a href="#cbp1-12-10" aria-hidden="true" tabindex="-1"></a><span class="co"> * {@link ChatClient} runs each tool call and sends the result back to the model.</span></span>
+<span id="cbp1-12-11"><a href="#cbp1-12-11" aria-hidden="true" tabindex="-1"></a><span class="co"> */</span></span>
+<span id="cbp1-12-12"><a href="#cbp1-12-12" aria-hidden="true" tabindex="-1"></a><span class="at">@Service</span></span>
+<span id="cbp1-12-13"><a href="#cbp1-12-13" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">class</span> Assistant <span class="op">{</span></span>
+<span id="cbp1-12-14"><a href="#cbp1-12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-12-15"><a href="#cbp1-12-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="dt">final</span> ChatClient chat<span class="op">;</span></span>
+<span id="cbp1-12-16"><a href="#cbp1-12-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="dt">final</span> LogTools logTools<span class="op">;</span></span>
+<span id="cbp1-12-17"><a href="#cbp1-12-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-12-18"><a href="#cbp1-12-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cbp1-12-19"><a href="#cbp1-12-19" aria-hidden="true" tabindex="-1"></a><span class="co">     * Builds the client from the builder that Spring Boot provides.</span></span>
+<span id="cbp1-12-20"><a href="#cbp1-12-20" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-12-21"><a href="#cbp1-12-21" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param builder  the {@link ChatClient.Builder} from the OpenAI starter</span></span>
+<span id="cbp1-12-22"><a href="#cbp1-12-22" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param logTools the tools the model can call</span></span>
+<span id="cbp1-12-23"><a href="#cbp1-12-23" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cbp1-12-24"><a href="#cbp1-12-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="fu">Assistant</span><span class="op">(</span>ChatClient<span class="op">.</span><span class="fu">Builder</span> builder<span class="op">,</span> LogTools logTools<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-12-25"><a href="#cbp1-12-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">this</span><span class="op">.</span><span class="fu">chat</span> <span class="op">=</span> builder<span class="op">.</span><span class="fu">build</span><span class="op">();</span></span>
+<span id="cbp1-12-26"><a href="#cbp1-12-26" aria-hidden="true" tabindex="-1"></a>        <span class="kw">this</span><span class="op">.</span><span class="fu">logTools</span> <span class="op">=</span> logTools<span class="op">;</span></span>
+<span id="cbp1-12-27"><a href="#cbp1-12-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cbp1-12-28"><a href="#cbp1-12-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cbp1-12-29"><a href="#cbp1-12-29" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cbp1-12-30"><a href="#cbp1-12-30" aria-hidden="true" tabindex="-1"></a><span class="co">     * Asks the model one question.</span></span>
+<span id="cbp1-12-31"><a href="#cbp1-12-31" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-12-32"><a href="#cbp1-12-32" aria-hidden="true" tabindex="-1"></a><span class="co">     * &lt;p&gt;The system message limits the reply to two sentences.</span></span>
+<span id="cbp1-12-33"><a href="#cbp1-12-33" aria-hidden="true" tabindex="-1"></a><span class="co">     *</span></span>
+<span id="cbp1-12-34"><a href="#cbp1-12-34" aria-hidden="true" tabindex="-1"></a><span class="co">     * @param question the user's question, in plain text</span></span>
+<span id="cbp1-12-35"><a href="#cbp1-12-35" aria-hidden="true" tabindex="-1"></a><span class="co">     * @return the model's final text reply</span></span>
+<span id="cbp1-12-36"><a href="#cbp1-12-36" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cbp1-12-37"><a href="#cbp1-12-37" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="bu">String</span> <span class="fu">ask</span><span class="op">(</span><span class="bu">String</span> question<span class="op">)</span> <span class="op">{</span></span>
+<span id="cbp1-12-38"><a href="#cbp1-12-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> chat<span class="op">.</span><span class="fu">prompt</span><span class="op">()</span></span>
+<span id="cbp1-12-39"><a href="#cbp1-12-39" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">system</span><span class="op">(</span><span class="st">&quot;You are a careful assistant. Answer in two sentences or fewer.&quot;</span><span class="op">)</span></span>
+<span id="cbp1-12-40"><a href="#cbp1-12-40" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">user</span><span class="op">(</span>question<span class="op">)</span></span>
+<span id="cbp1-12-41"><a href="#cbp1-12-41" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">tools</span><span class="op">(</span>logTools<span class="op">)</span></span>
+<span id="cbp1-12-42"><a href="#cbp1-12-42" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">call</span><span class="op">()</span></span>
+<span id="cbp1-12-43"><a href="#cbp1-12-43" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span><span class="fu">content</span><span class="op">();</span></span>
+<span id="cbp1-12-44"><a href="#cbp1-12-44" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cbp1-12-45"><a href="#cbp1-12-45" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><code>ChatClient</code> runs the tool for you. It sends the result back to the model and returns the final text. Chapter 5 writes this loop by hand.</p>
+<h4 id="step-3-run-it-with-the-tool">Step 3: Run it with the tool<a class="anchor" href="#step-3-run-it-with-the-tool" aria-label="Link to this section">#</a></h4>
+<p>Restart the app. Table 4.1 lists three questions and the replies from one run.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Reply</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>how many error events?</code></td>
+<td>Please specify which service you would like to check and the time window (in minutes) for the error count.</td>
+</tr>
+<tr>
+<td><code>how many error events in search service?</code></td>
+<td>There were 3 error events in the search service in the last 10 minutes.</td>
+</tr>
+<tr>
+<td><code>how many error events in checkout service?</code></td>
+<td>There are currently 412 error events in the checkout service over the last 15 minutes.</td>
+</tr>
+</tbody>
+</table></div>
+<p class="caption">Table 4.1. Replies from Gemma with the tool attached. Your wording will differ.</p>
+<ul>
+<li>Without a service name, the model asks for one. It does not guess.</li>
+<li>The counts match the fake data: 412 for <code>checkout</code>, 3 for the rest.</li>
+<li>The model chose <code>minutes</code> itself: 10 and 15. The question gave no window.</li>
+</ul>
+<p>Send the last question:</p>
+<div class="sourceCode" id="cbp1-13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cbp1-13-1"><a href="#cbp1-13-1" aria-hidden="true" tabindex="-1"></a>curl -G http://localhost:8080/ --data-urlencode &quot;input=how many error events in checkout service?&quot;</span></code></pre></div>
+<p><strong>Exercise:</strong> Rename the tool, then remove its description. Compare the model's choices each time.</p>
+<p><strong>Summary:</strong> One <code>@Tool</code> method lets the model answer from data. The description decides when the model calls it.</p>
+<h2 id="part-2-the-loop">Part 2: The Loop<a class="anchor" href="#part-2-the-loop" aria-label="Link to this section">#</a></h2>
+<h3 id="chapter-5-writing-the-agent-loop-by-hand">Chapter 5: Writing the agent loop by hand<a class="anchor" href="#chapter-5-writing-the-agent-loop-by-hand" aria-label="Link to this section">#</a></h3>
+<p>The loop has four steps. Send the messages to the model. If the reply has no tool calls, return its text. Otherwise run each tool, add the results to the messages, and repeat.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "The agent loop.",
+  "steps": [
+    {"label": "1. Send the messages to the model"},
+    {"label": "2. Does the reply have tool calls?", "no": "Return its text: FINAL_ANSWER"},
+    {"label": "3. Run each tool"},
+    {"label": "4. Add the results to the messages"},
+    {"label": "Is step still ≤ MAX_STEPS?", "no": "Stop: STEP_LIMIT (Chapter 6)"},
+    {"label": "Repeat from step 1", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 5.1. The four steps, with the step cap from the code below. The other stop rules come in Chapter 6.
+</figcaption>
+</figure>
+<p>Turn off automatic tool execution, so the code runs each tool itself.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ToolCallingChatOptions options <span class="op">=</span> ToolCallingChatOptions<span class="op">.</span><span class="fu">builder</span><span class="op">()</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">toolCallbacks</span><span class="op">(</span>ToolCallbacks<span class="op">.</span><span class="fu">from</span><span class="op">(</span>logTools<span class="op">))</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">internalToolExecutionEnabled</span><span class="op">(</span><span class="kw">false</span><span class="op">)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span><span class="fu">build</span><span class="op">();</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> step <span class="op">=</span> <span class="dv">1</span><span class="op">;</span> step <span class="op">&lt;=</span> MAX_STEPS<span class="op">;</span> step<span class="op">++)</span> <span class="op">{</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    ChatResponse response <span class="op">=</span> model<span class="op">.</span><span class="fu">call</span><span class="op">(</span><span class="kw">new</span> <span class="fu">Prompt</span><span class="op">(</span>messages<span class="op">,</span> options<span class="op">));</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    AssistantMessage reply <span class="op">=</span> response<span class="op">.</span><span class="fu">getResult</span><span class="op">().</span><span class="fu">getOutput</span><span class="op">();</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    messages<span class="op">.</span><span class="fu">add</span><span class="op">(</span>reply<span class="op">);</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(!</span>reply<span class="op">.</span><span class="fu">hasToolCalls</span><span class="op">())</span> <span class="op">{</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="kw">new</span> <span class="fu">RunResult</span><span class="op">(</span>reply<span class="op">.</span><span class="fu">getText</span><span class="op">(),</span> StopReason<span class="op">.</span><span class="fu">FINAL_ANSWER</span><span class="op">,</span> step<span class="op">);</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">// run each tool call, add ToolResponseMessage to messages</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "A two-step run through the loop.",
+  "lifelines": [
+    {"id": "loop", "label": "Your loop", "tone": "platform"},
+    {"id": "model", "label": "ChatModel", "tone": "subscriber"},
+    {"id": "tools", "label": "LogTools", "tone": "platform"}
+  ],
+  "messages": [
+    {"from": "loop", "to": "model", "label": "step 1: call(new Prompt(messages, options))"},
+    {"from": "model", "to": "loop", "label": "AssistantMessage with a countErrors call", "kind": "response"},
+    {"from": "loop", "to": "tools", "label": "run countErrors"},
+    {"from": "tools", "to": "loop", "label": "412", "kind": "response"},
+    {"from": "loop", "to": "loop", "label": "add ToolResponseMessage to messages"},
+    {"from": "loop", "to": "model", "label": "step 2: call(new Prompt(messages, options))"},
+    {"from": "model", "to": "loop", "label": "AssistantMessage, no tool calls", "kind": "response"},
+    {"from": "loop", "to": "loop", "label": "return RunResult(text, FINAL_ANSWER, 2)"}
+  ]
+}
+</script>
+<figcaption>
+Figure 5.2. A two-step run. Because <code>internalToolExecutionEnabled(false)</code> is set, your loop runs the tool, not Spring AI. Each step resends the full message list.
+</figcaption>
+</figure>
+<blockquote>
+<p><strong>Verify:</strong> Confirm the class names and builder methods for your Spring AI version. They change between releases.</p>
+</blockquote>
+<h3 id="chapter-6-termination">Chapter 6: Termination<a class="anchor" href="#chapter-6-termination" aria-label="Link to this section">#</a></h3>
+<p>A run ends in one of these ways: a final answer, a step limit, a token budget, a timeout, or loop detection. Every run returns a <code>RunResult</code> with the reason, so failures are easy to read.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "Stop checks after each model reply.",
+  "steps": [
+    {"label": "A model reply arrives"},
+    {"label": "Does it have tool calls?", "no": "FINAL_ANSWER"},
+    {"label": "Below the step limit?", "no": "STEP_LIMIT"},
+    {"label": "Within the token budget?", "no": "TOKEN_BUDGET"},
+    {"label": "Within the timeout?", "no": "TIMEOUT"},
+    {"label": "No repeated tool call?", "no": "LOOP_DETECTED"},
+    {"label": "Run the tools and continue", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 6.1. Each way a run ends maps to one <code>StopReason</code>. The chapter does not fix an order for the checks; this order is one reasonable choice. <code>APPROVAL_TIMEOUT</code> and <code>REJECTED</code> come from the approval path in Chapter 9.
+</figcaption>
+</figure>
+<div class="sourceCode" id="cb5"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">record</span> <span class="fu">RunResult</span><span class="op">(</span><span class="bu">String</span> answer<span class="op">,</span> StopReason reason<span class="op">,</span> <span class="dt">int</span> steps<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">public</span> <span class="kw">enum</span> StopReason <span class="op">{</span> FINAL_ANSWER<span class="op">,</span> STEP_LIMIT<span class="op">,</span> TOKEN_BUDGET<span class="op">,</span> <span class="bu">TIMEOUT</span><span class="op">,</span> LOOP_DETECTED<span class="op">,</span> APPROVAL_TIMEOUT<span class="op">,</span> REJECTED <span class="op">}</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="chapter-7-guardrails">Chapter 7: Guardrails<a class="anchor" href="#chapter-7-guardrails" aria-label="Link to this section">#</a></h3>
+<p>Put guardrails in code, not in the prompt.</p>
+<ul>
+<li><strong>Argument checks.</strong> Reject a <code>minutes</code> value outside 1 to 1440 before the tool runs. Return the error text to the model.</li>
+<li><strong>Allowlist.</strong> Each agent has a fixed set of tool names. Reject any other name.</li>
+<li><strong>Loop detection.</strong> Count each tool name plus arguments. Stop when one key repeats three times.</li>
+</ul>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "Three guardrails between a tool call and the tool.",
+  "steps": [
+    {"label": "The model asks for a tool call"},
+    {"label": "Is the tool name in this agent's allowlist?", "no": "Reject the name"},
+    {"label": "Is minutes between 1 and 1440?", "no": "Return the error text to the model"},
+    {"label": "Has this name plus arguments repeated fewer than three times?", "no": "Stop: LOOP_DETECTED"},
+    {"label": "Run the tool", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 7.1. The three guardrails, in front of every tool. Each one is a line of Java, so the model cannot talk its way past it.
+</figcaption>
+</figure>
+<h3 id="chapter-8-graphs">Chapter 8: Graphs<a class="anchor" href="#chapter-8-graphs" aria-label="Link to this section">#</a></h3>
+<p>A graph makes the flow explicit. Each stage is a node. Each move between stages is an edge. Keep the control flow in plain Java, so every edge has a unit test. A graph database is a different tool, used for relationships between services. Chapter 8b covers it.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The watcher as a graph of stages.",
+  "nodes": [
+    {"id": "search", "x": 570, "y": 0, "w": 160, "label": "Runbook search", "detail": "hybrid + reranker", "tone": "data"},
+    {"id": "window", "x": 0, "y": 120, "w": 160, "label": "Read error window", "tone": "platform"},
+    {"id": "fp", "x": 190, "y": 120, "w": 160, "label": "Fingerprint", "detail": "group errors", "tone": "platform"},
+    {"id": "rate", "x": 380, "y": 120, "w": 160, "label": "Rate limit", "tone": "platform"},
+    {"id": "triage", "x": 570, "y": 120, "w": 160, "label": "Triage", "detail": "triage-error-group skill", "tone": "ai"},
+    {"id": "lowmed", "x": 760, "y": 120, "w": 150, "label": "Low or medium", "detail": "not defined yet", "tone": "muted"},
+    {"id": "empty", "x": 0, "y": 270, "w": 160, "label": "Stop", "detail": "no model call", "tone": "muted"},
+    {"id": "dup", "x": 190, "y": 270, "w": 160, "label": "Suppress", "detail": "duplicate", "tone": "muted"},
+    {"id": "flood", "x": 380, "y": 270, "w": 160, "label": "Stop", "detail": "flood hits the limit", "tone": "muted"},
+    {"id": "approval", "x": 570, "y": 270, "w": 160, "label": "Await approval", "detail": "signal or 1-hour timer", "tone": "operator"},
+    {"id": "alert", "x": 760, "y": 270, "w": 150, "label": "Post alert", "tone": "external"},
+    {"id": "reject", "x": 570, "y": 400, "w": 160, "label": "Stop", "detail": "REJECTED or APPROVAL_TIMEOUT", "tone": "muted"}
+  ],
+  "edges": [
+    {"from": "window", "to": "fp", "label": "errors"},
+    {"from": "window", "to": "empty", "label": "empty"},
+    {"from": "fp", "to": "rate", "label": "new"},
+    {"from": "fp", "to": "dup", "label": "duplicate"},
+    {"from": "rate", "to": "triage", "label": "ok"},
+    {"from": "rate", "to": "flood", "label": "flood"},
+    {"from": "triage", "to": "search", "label": "runbooks", "both": true},
+    {"from": "triage", "to": "lowmed", "label": "low, medium"},
+    {"from": "triage", "to": "approval", "label": "critical"},
+    {"from": "approval", "to": "alert", "label": "approved"},
+    {"from": "approval", "to": "reject", "label": "rejected, timeout"}
+  ]
+}
+</script>
+<figcaption>
+Figure 8.1. An illustrative watcher graph, assembled from the eval cases in Chapter 20, the triage skill in Chapter 14, and the approval in Chapter 9. Each arrow is one edge to unit-test. The course does not fix the stage order, and it does not define the low and medium path.
+</figcaption>
+</figure>
+<p>The graph above is a teaching sketch, not the course's specification. What the watcher does with low and medium severity is <span class="needs-input">NEEDS INPUT: the low and medium severity path, for example post without approval or record only</span>.</p>
+<h3 id="chapter-9-human-in-the-loop">Chapter 9: Human-in-the-loop<a class="anchor" href="#chapter-9-human-in-the-loop" aria-label="Link to this section">#</a></h3>
+<p>A critical alert waits for a person. The workflow sets its state to awaiting approval and waits for an approval signal or a one-hour timer. Temporal stores the wait, so a restart does not lose it. Chapter 24 shows the code. Keep an audit row in PostgreSQL for each decision.</p>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "Approval: wait, decide, and record.",
+  "lifelines": [
+    {"id": "wf", "label": "Watcher workflow", "tone": "operator"},
+    {"id": "person", "label": "Person", "tone": "external"},
+    {"id": "pg", "label": "PostgreSQL audit", "tone": "platform"},
+    {"id": "alert", "label": "Alert channel", "tone": "external"}
+  ],
+  "messages": [
+    {"from": "wf", "to": "wf", "label": "critical: state = awaiting approval"},
+    {"from": "wf", "to": "wf", "label": "wait for a signal or a one-hour timer"},
+    {"from": "wf", "to": "pg", "label": "Temporal stores the wait. A worker restart does not lose it.", "kind": "note"},
+    {"from": "person", "to": "wf", "label": "approval signal"},
+    {"from": "wf", "to": "pg", "label": "audit row for the decision"},
+    {"from": "wf", "to": "alert", "label": "post the alert"},
+    {"from": "wf", "to": "alert", "label": "No signal in one hour: stop with APPROVAL_TIMEOUT", "kind": "note"}
+  ]
+}
+</script>
+<figcaption>
+Figure 9.1. The approval path for a critical alert. A rejection writes the audit row and stops with <code>REJECTED</code>. How the person is notified is not covered here.
+</figcaption>
+</figure>
+<h2 id="part-3-memory-and-retrieval">Part 3: Memory and Retrieval<a class="anchor" href="#part-3-memory-and-retrieval" aria-label="Link to this section">#</a></h2>
+<h3 id="chapter-10-short-term-memory-with-spring-ai-session">Chapter 10: Short-term memory with Spring AI Session<a class="anchor" href="#chapter-10-short-term-memory-with-spring-ai-session" aria-label="Link to this section">#</a></h3>
+<p>Spring AI Session stores every message and tool call in PostgreSQL. Spring AI's JDBC chat memory drops tool call messages, so this course does not use it. The workflow id is the session id.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>sessions<span class="op">.</span><span class="fu">appendMessage</span><span class="op">(</span>sessionId<span class="op">,</span> <span class="kw">new</span> <span class="fu">UserMessage</span><span class="op">(</span>question<span class="op">));</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="bu">List</span><span class="op">&lt;</span>Message<span class="op">&gt;</span> history <span class="op">=</span> sessions<span class="op">.</span><span class="fu">getMessages</span><span class="op">(</span>sessionId<span class="op">);</span></span></code></pre></div>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "Full history in the database, a chosen window to the model.",
+  "nodes": [
+    {"id": "pgb", "type": "boundary", "x": 260, "y": 0, "w": 260, "h": 260, "label": "PostgreSQL"},
+    {"id": "harness", "x": 0, "y": 40, "w": 200, "label": "Harness", "detail": "session id = workflow id", "tone": "platform"},
+    {"id": "session", "x": 280, "y": 40, "w": 220, "label": "Spring AI Session", "detail": "every message and tool call", "tone": "data"},
+    {"id": "jdbc", "x": 280, "y": 170, "w": 220, "label": "JDBC chat memory", "detail": "drops tool calls · not used", "tone": "isolated"},
+    {"id": "window", "x": 580, "y": 40, "w": 190, "label": "Context window", "detail": "a separate choice", "tone": "platform"},
+    {"id": "model", "x": 580, "y": 170, "w": 190, "label": "Model", "tone": "ai"}
+  ],
+  "edges": [
+    {"from": "harness", "to": "session", "label": "appendMessage"},
+    {"from": "session", "to": "window", "label": "getMessages"},
+    {"from": "window", "to": "model", "label": "prompt", "animated": true}
+  ]
+}
+</script>
+<figcaption>
+Figure 10.1. The database keeps everything. The harness decides how much of it to send. The figure leaves out how the window is chosen; the chapter leaves that open.
+</figcaption>
+</figure>
+<p>The full history stays in the database. The window sent to the model is a separate choice. Verify the bean name and the <code>create</code> signature in the Session README.</p>
+<h3 id="chapter-11-embeddings-and-hybrid-storage-in-postgresql">Chapter 11: Embeddings and hybrid storage in PostgreSQL<a class="anchor" href="#chapter-11-embeddings-and-hybrid-storage-in-postgresql" aria-label="Link to this section">#</a></h3>
+<p>Use one PostgreSQL database with VectorChord for vectors, and its BM25 extension for keywords. The table holds the text, the metadata, the embedding, and the keyword vector.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> <span class="cf">IF</span> <span class="kw">NOT</span> <span class="kw">EXISTS</span> corpus (</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>       TEXT <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    service  TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    doc_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">source</span>   TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    text     TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    emb      vector(<span class="dv">1024</span>),</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    bm25     bm25vector</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p>BGE-M3 runs in LM Studio and produces 1024-dimension vectors. Split documents into chunks of about 1200 characters with 150 overlapping. Embed each chunk, then insert it. A startup check confirms the vector size matches the table.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "Ingest: chunk, embed, insert.",
+  "nodes": [
+    {"id": "docs", "x": 0, "y": 40, "w": 150, "label": "Documents", "detail": "for example runbooks", "tone": "external"},
+    {"id": "chunk", "x": 220, "y": 40, "w": 170, "label": "Chunker", "detail": "~1200 chars, 150 overlap", "tone": "platform"},
+    {"id": "bge", "x": 460, "y": 40, "w": 170, "label": "BGE-M3", "detail": "in LM Studio · 1024 dims", "tone": "ai"},
+    {"id": "corpus", "x": 700, "y": 40, "w": 200, "label": "corpus table", "detail": "text, metadata, emb, bm25", "tone": "data"},
+    {"id": "check", "x": 700, "y": 170, "w": 200, "label": "Startup check", "detail": "vector size = vector(1024)", "tone": "muted"}
+  ],
+  "edges": [
+    {"from": "docs", "to": "chunk", "label": "split"},
+    {"from": "chunk", "to": "bge", "label": "each chunk"},
+    {"from": "bge", "to": "corpus", "label": "insert"},
+    {"from": "check", "to": "corpus", "label": "compares", "dashed": true}
+  ]
+}
+</script>
+<figcaption>
+Figure 11.1. The ingest path for one document. The figure leaves out how the <code>bm25vector</code> column is filled; see the Verify note below.
+</figcaption>
+</figure>
+<figure class="sketch">
+<svg viewBox="0 0 880 150" role="img" aria-label="Three chunks of about 1200 characters, each overlapping the next by 150">
+<style>.ov{fill:rgba(46,196,182,.22);stroke:none}.chunk{fill:#fff;stroke:#0d2238;stroke-width:1.5}.sk-dim{fill:#526577;font:12px "Public Sans",system-ui,sans-serif}</style>
+<rect class="chunk" x="20" y="20" width="320" height="36" rx="6"/> <rect class="chunk" x="280" y="66" width="320" height="36" rx="6"/> <rect class="chunk" x="540" y="20" width="320" height="36" rx="6"/> <rect class="ov" x="280" y="20" width="60" height="82"/> <rect class="ov" x="540" y="20" width="60" height="82"/> <text class="sk-label" x="34" y="43">chunk 1 · ~1200 chars</text> <text class="sk-label" x="400" y="89">chunk 2 · ~1200 chars</text> <text class="sk-label" x="620" y="43">chunk 3 · ~1200 chars</text> <text class="sk-dim" x="282" y="125">150 shared</text> <text class="sk-dim" x="542" y="125">150 shared</text>
+</svg>
+<figcaption>
+Figure 11.2. Overlap keeps a sentence that crosses a chunk border searchable from both sides. Not to scale.
+</figcaption>
+</figure>
+<blockquote>
+<p><strong>Verify:</strong> Create the BM25 index with the statement in the VectorChord-BM25 repository. The reference article does not show it.</p>
+</blockquote>
+<h3 id="chapter-12-hybrid-retrieval-inside-the-loop">Chapter 12: Hybrid retrieval inside the loop<a class="anchor" href="#chapter-12-hybrid-retrieval-inside-the-loop" aria-label="Link to this section">#</a></h3>
+<p>Run two searches and merge them. The vector search returns the 20 closest chunks. The keyword search returns the 20 best BM25 matches. Reciprocal Rank Fusion merges the two lists by rank. Each chunk scores the sum of 1 divided by 60 plus its rank in each list.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "Two searches, one fused list.",
+  "nodes": [
+    {"id": "q", "x": 0, "y": 90, "w": 150, "label": "Search tool call", "detail": "from the model", "tone": "platform"},
+    {"id": "vec", "x": 220, "y": 20, "w": 190, "label": "Vector search", "detail": "20 closest chunks", "tone": "data"},
+    {"id": "kw", "x": 220, "y": 160, "w": 190, "label": "Keyword search", "detail": "20 best BM25 matches", "tone": "data"},
+    {"id": "rrf", "x": 470, "y": 90, "w": 200, "label": "Reciprocal Rank Fusion", "detail": "score = Σ 1 / (60 + rank)", "tone": "platform"},
+    {"id": "model", "x": 720, "y": 90, "w": 150, "label": "Model", "detail": "cites each claim", "tone": "ai"}
+  ],
+  "edges": [
+    {"from": "q", "to": "vec", "label": "embed query", "fromSide": "right", "toSide": "left"},
+    {"from": "q", "to": "kw", "label": "keywords", "fromSide": "right", "toSide": "left"},
+    {"from": "vec", "to": "rrf", "label": "ranks", "fromSide": "right", "toSide": "left"},
+    {"from": "kw", "to": "rrf", "label": "ranks", "fromSide": "right", "toSide": "left"},
+    {"from": "rrf", "to": "model", "label": "tool result"}
+  ]
+}
+</script>
+<figcaption>
+Figure 12.1. Hybrid retrieval. RRF uses rank positions, not raw scores, so a vector distance and a BM25 score never need to be compared. Chapter 13 adds filters and a reranker.
+</figcaption>
+</figure>
+<p><strong>Worked example of the RRF formula.</strong> A chunk ranked 1st in the vector list and 3rd in the keyword list scores 1/61 + 1/63 ≈ 0.0323. A chunk ranked 2nd in the vector list only scores 1/62 ≈ 0.0161. Appearing in both lists wins.</p>
+<p>Expose the merged search as a tool. Require a citation for each claim. If the answer has no citation and does not say no match, send one correction. Stop if it still has none.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The citation check, with one correction.",
+  "nodes": [
+    {"id": "ans", "x": 0, "y": 60, "w": 150, "label": "Model answer", "tone": "ai"},
+    {"id": "c1", "x": 190, "y": 60, "w": 190, "label": "Cited, or says no match?", "tone": "platform"},
+    {"id": "fix", "x": 190, "y": 190, "w": 190, "label": "Send one correction", "tone": "platform"},
+    {"id": "c2", "x": 420, "y": 190, "w": 190, "label": "Cited, or says no match?", "tone": "platform"},
+    {"id": "ok", "x": 650, "y": 60, "w": 150, "label": "Accept the answer", "tone": "platform"},
+    {"id": "stop", "x": 650, "y": 190, "w": 150, "label": "Stop the run", "tone": "muted"}
+  ],
+  "edges": [
+    {"from": "ans", "to": "c1"},
+    {"from": "c1", "to": "ok", "label": "yes"},
+    {"from": "c1", "to": "fix", "label": "no"},
+    {"from": "fix", "to": "c2", "label": "new answer"},
+    {"from": "c2", "to": "ok", "label": "yes", "fromSide": "top", "toSide": "bottom"},
+    {"from": "c2", "to": "stop", "label": "no"}
+  ]
+}
+</script>
+<figcaption>
+Figure 12.2. One correction, never a second. The chapter does not name the stop reason for an uncited answer.
+</figcaption>
+</figure>
+<h3 id="chapter-13-retrieval-quality">Chapter 13: Retrieval quality<a class="anchor" href="#chapter-13-retrieval-quality" aria-label="Link to this section">#</a></h3>
+<p>Use metadata filters for service and document type. Return <code>NO_MATCH</code> when the best vector distance is above a threshold you set from the eval set. Then rerank the fused top 20 with the cross-encoder <code>bge-reranker-v2-m3</code>, served over REST, and keep the top 4.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The full retrieval pipeline.",
+  "nodes": [
+    {"id": "filter", "x": 0, "y": 40, "w": 170, "label": "Metadata filters", "detail": "service, doc_type", "tone": "platform"},
+    {"id": "hybrid", "x": 210, "y": 40, "w": 170, "label": "Hybrid search + RRF", "detail": "Chapter 12", "tone": "data"},
+    {"id": "thr", "x": 420, "y": 40, "w": 190, "label": "Best distance ≤ threshold?", "detail": "set from the eval set", "tone": "platform"},
+    {"id": "nomatch", "x": 420, "y": 180, "w": 190, "label": "NO_MATCH", "tone": "muted"},
+    {"id": "rerank", "x": 650, "y": 40, "w": 190, "label": "Reranker", "detail": "bge-reranker-v2-m3 · REST", "tone": "ai"},
+    {"id": "top4", "x": 650, "y": 180, "w": 190, "label": "Top 4 chunks", "detail": "to the model", "tone": "platform"},
+    {"id": "log", "x": 880, "y": 40, "w": 140, "label": "Step log", "detail": "rerank duration", "tone": "muted"}
+  ],
+  "edges": [
+    {"from": "filter", "to": "hybrid"},
+    {"from": "hybrid", "to": "thr", "label": "fused top 20"},
+    {"from": "thr", "to": "nomatch", "label": "no"},
+    {"from": "thr", "to": "rerank", "label": "yes"},
+    {"from": "rerank", "to": "top4", "label": "reorder"},
+    {"from": "rerank", "to": "log", "dashed": true}
+  ]
+}
+</script>
+<figcaption>
+Figure 13.1. Retrieval from filter to the four chunks the model reads. The reranker adds latency, so its duration goes to the step log from Chapter 19.
+</figcaption>
+</figure>
+<p>The reference article reports that the cross-encoder was best on all four datasets it tested (Source: VectorChord blog, 2025). Test the gain on your own eval set. The reranker adds latency, so log its duration.</p>
+<p>PostgreSQL cannot run a neural reranker. A ColBERT rerank can run in SQL, but it needs a separate token encoder service, so this course does not use it.</p>
+<h2 id="part-4-skills-and-agents">Part 4: Skills and Agents<a class="anchor" href="#part-4-skills-and-agents" aria-label="Link to this section">#</a></h2>
+<h3 id="chapter-14-skills-as-files">Chapter 14: Skills as files<a class="anchor" href="#chapter-14-skills-as-files" aria-label="Link to this section">#</a></h3>
+<p>A skill is a folder with a <code>SKILL.md</code> file. The file has a name and a one-line description in front matter, then the full instructions. The harness loads only names and descriptions at the start. A <code>useSkill</code> tool loads the full text when the model asks for it.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> triage-error-group</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> Judge the severity of one error group from its rate, the services it affects, and whether a runbook exists.</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu"># Steps</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Read the error rate for the last 15 minutes.</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>List the affected services.</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Search runbooks for the error fingerprint.</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Return one severity: low, medium, or critical.</span></code></pre></div>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "Progressive loading: front matter first, full text on demand.",
+  "lifelines": [
+    {"id": "files", "label": "SKILL.md files", "tone": "platform"},
+    {"id": "harness", "label": "Harness", "tone": "platform"},
+    {"id": "model", "label": "Model", "tone": "subscriber"}
+  ],
+  "messages": [
+    {"from": "harness", "to": "files", "label": "at start: read name + description only"},
+    {"from": "harness", "to": "model", "label": "prompt lists triage-error-group and its description"},
+    {"from": "model", "to": "harness", "label": "tool call: useSkill(triage-error-group)", "kind": "response"},
+    {"from": "harness", "to": "files", "label": "load the full SKILL.md"},
+    {"from": "harness", "to": "model", "label": "tool result: steps 1 to 4"},
+    {"from": "model", "to": "harness", "label": "follows the steps; returns low, medium, or critical", "kind": "response"}
+  ]
+}
+</script>
+<figcaption>
+Figure 14.1. A skill costs one line of the prompt until the model asks for it. The figure leaves out the tool calls the model makes while following the steps.
+</figcaption>
+</figure>
+<h3 id="chapter-15-skill-selection">Chapter 15: Skill selection<a class="anchor" href="#chapter-15-skill-selection" aria-label="Link to this section">#</a></h3>
+<p>Skills are indexed by their description embedding in PostgreSQL. For each task, the harness takes the five nearest skills. Only those five appear in the prompt, and <code>useSkill</code> accepts only those names. Measure recall at five on 20 labeled tasks. Include pre-filtering only when the catalog grows past about ten skills.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "Selecting skills for one task.",
+  "steps": [
+    {"label": "A task arrives"},
+    {"label": "Embed the task"},
+    {"label": "Take the five nearest skill descriptions from PostgreSQL"},
+    {"label": "Put only those five in the prompt"},
+    {"label": "Is the useSkill name one of the five?", "no": "Reject the call"},
+    {"label": "Load the full SKILL.md", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 15.1. Skill selection for one task. The same five names are the prompt list and the <code>useSkill</code> allowlist. Recall at five, on 20 labeled tasks, says whether the right skill made the cut.
+</figcaption>
+</figure>
+<h3 id="chapter-16-sub-agents">Chapter 16: Sub-agents<a class="anchor" href="#chapter-16-sub-agents" aria-label="Link to this section">#</a></h3>
+<p>A sub-agent has its own system prompt, its own tool allowlist, and its own step limit. The parent calls it through a tool that returns a short summary. A focused agent does one job well.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "A parent calls a sub-agent through a tool.",
+  "nodes": [
+    {"id": "pb", "type": "boundary", "x": 0, "y": 0, "w": 300, "h": 240, "label": "Parent agent"},
+    {"id": "parent", "x": 30, "y": 50, "w": 240, "label": "Parent loop", "detail": "its own goal", "tone": "platform"},
+    {"id": "tool", "x": 30, "y": 150, "w": 240, "label": "Sub-agent tool", "detail": "one entry in the parent's allowlist", "tone": "platform"},
+    {"id": "sb", "type": "boundary", "x": 370, "y": 0, "w": 450, "h": 240, "label": "Sub-agent"},
+    {"id": "sloop", "x": 400, "y": 50, "w": 190, "label": "Sub-agent loop", "tone": "platform"},
+    {"id": "prompt", "x": 610, "y": 40, "w": 190, "label": "Own system prompt", "tone": "muted"},
+    {"id": "allow", "x": 610, "y": 105, "w": 190, "label": "Own tool allowlist", "tone": "muted"},
+    {"id": "limit", "x": 610, "y": 170, "w": 190, "label": "Own step limit", "tone": "muted"}
+  ],
+  "edges": [
+    {"from": "parent", "to": "tool", "label": "tool call"},
+    {"from": "tool", "to": "sloop", "label": "task", "fromSide": "right", "toSide": "bottom"},
+    {"from": "sloop", "to": "parent", "label": "short summary", "fromSide": "left", "toSide": "right"}
+  ]
+}
+</script>
+<figcaption>
+Figure 16.1. To the parent, a sub-agent is one more tool. Its prompt, tools, and step limit are its own. Chapter 18 fixes the shape of the summary.
+</figcaption>
+</figure>
+<h3 id="chapter-17-agent-selection">Chapter 17: Agent selection<a class="anchor" href="#chapter-17-agent-selection" aria-label="Link to this section">#</a></h3>
+<p>Three patterns exist. A direct agent handles the task itself. A router labels the task and sends it to one agent. A supervisor plans several subtasks and combines the results. Start with direct handling. Add a router only when the cost of a wrong route is clear. Test each pattern with the eval set.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "Three ways to pick who handles a task.",
+  "nodes": [
+    {"id": "d", "type": "boundary", "x": 0, "y": 0, "w": 230, "h": 340, "label": "Direct · start here"},
+    {"id": "dt", "x": 25, "y": 50, "w": 180, "label": "Task"},
+    {"id": "da", "x": 25, "y": 180, "w": 180, "label": "Agent", "detail": "handles it itself", "tone": "platform"},
+    {"id": "r", "type": "boundary", "x": 260, "y": 0, "w": 270, "h": 340, "label": "Router"},
+    {"id": "rt", "x": 305, "y": 50, "w": 180, "label": "Task"},
+    {"id": "rr", "x": 305, "y": 140, "w": 180, "label": "Router", "detail": "labels the task", "tone": "ai"},
+    {"id": "ra", "x": 280, "y": 260, "w": 110, "label": "Agent A", "tone": "platform"},
+    {"id": "rb", "x": 400, "y": 260, "w": 110, "label": "Agent B", "tone": "muted"},
+    {"id": "s", "type": "boundary", "x": 560, "y": 0, "w": 300, "h": 340, "label": "Supervisor"},
+    {"id": "st", "x": 620, "y": 50, "w": 180, "label": "Task"},
+    {"id": "ss", "x": 620, "y": 140, "w": 180, "label": "Supervisor", "detail": "plans, then combines", "tone": "ai"},
+    {"id": "sa", "x": 580, "y": 260, "w": 120, "label": "Subtask 1", "tone": "platform"},
+    {"id": "sb", "x": 720, "y": 260, "w": 120, "label": "Subtask 2", "tone": "platform"}
+  ],
+  "edges": [
+    {"from": "dt", "to": "da"},
+    {"from": "rt", "to": "rr"},
+    {"from": "rr", "to": "ra", "label": "one route"},
+    {"from": "st", "to": "ss"},
+    {"from": "ss", "to": "sa", "both": true},
+    {"from": "ss", "to": "sb", "both": true}
+  ]
+}
+</script>
+<figcaption>
+Figure 17.1. The three patterns. A router sends each task to exactly one agent; Agent B is greyed out because it was not chosen this time. A supervisor sends to several and combines the results. Each pattern is tested on the same eval set.
+</figcaption>
+</figure>
+<h3 id="chapter-18-context-isolation">Chapter 18: Context isolation<a class="anchor" href="#chapter-18-context-isolation" aria-label="Link to this section">#</a></h3>
+<p>A sub-agent keeps its full detail in the log. It returns a capped summary with a fixed shape: a finding, a confidence, and a detail id. Set the cap in code, not in the prompt. The parent's context stays small.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "Where a sub-agent's output goes.",
+  "nodes": [
+    {"id": "sub", "x": 0, "y": 100, "w": 190, "label": "Sub-agent", "detail": "many steps, long outputs", "tone": "platform"},
+    {"id": "log", "x": 300, "y": 0, "w": 230, "label": "Log", "detail": "full detail, by detail id", "tone": "data"},
+    {"id": "cap", "x": 300, "y": 190, "w": 230, "label": "Cap, in code", "detail": "finding · confidence · detail id", "tone": "platform"},
+    {"id": "parent", "x": 640, "y": 190, "w": 200, "label": "Parent context", "detail": "stays small", "tone": "platform"}
+  ],
+  "edges": [
+    {"from": "sub", "to": "log", "label": "everything"},
+    {"from": "sub", "to": "cap", "label": "summary"},
+    {"from": "cap", "to": "parent", "label": "capped summary"},
+    {"from": "parent", "to": "log", "label": "detail id, when needed", "dashed": true}
+  ]
+}
+</script>
+<figcaption>
+Figure 18.1. Two outputs from one sub-agent. The detail id links the short summary back to the full record. The chapter does not say whether the parent can fetch the detail itself, so that edge is dashed.
+</figcaption>
+</figure>
+<h2 id="part-5-observability-evaluation-and-cost">Part 5: Observability, Evaluation, and Cost<a class="anchor" href="#part-5-observability-evaluation-and-cost" aria-label="Link to this section">#</a></h2>
+<h3 id="chapter-19-step-logging">Chapter 19: Step logging<a class="anchor" href="#chapter-19-step-logging" aria-label="Link to this section">#</a></h3>
+<p>Write one JSON line per model call and per tool call. Each line holds the run id, step number, kind, tool name, arguments, token counts, duration, and stop reason. A failure is easy to find when you search by run id.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "Every call in the loop leaves one line.",
+  "nodes": [
+    {"id": "loop", "type": "boundary", "x": 0, "y": 0, "w": 420, "h": 150, "label": "One run · run id"},
+    {"id": "m", "x": 20, "y": 50, "w": 180, "label": "Model call", "detail": "step n", "tone": "ai"},
+    {"id": "t", "x": 220, "y": 50, "w": 180, "label": "Tool call", "detail": "step n", "tone": "platform"},
+    {"id": "log", "x": 500, "y": 50, "w": 200, "label": "Step log", "detail": "one JSON line per call", "tone": "data"},
+    {"id": "you", "x": 760, "y": 50, "w": 120, "label": "You", "detail": "search by run id", "tone": "external"}
+  ],
+  "edges": [
+    {"from": "m", "to": "log", "fromSide": "bottom", "toSide": "bottom"},
+    {"from": "t", "to": "log", "label": "one line each"},
+    {"from": "you", "to": "log", "label": "search"}
+  ]
+}
+</script>
+<figcaption>
+Figure 19.1. Both kinds of call write to the same log. Because every line carries the run id, one search returns the whole run in step order.
+</figcaption>
+</figure>
+<p>An illustrative pair of lines, one per kind. The field names are an example; the chapter fixes the content, not the spelling.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;runId&quot;</span><span class="fu">:</span><span class="st">&quot;run-42&quot;</span><span class="fu">,</span><span class="dt">&quot;step&quot;</span><span class="fu">:</span><span class="dv">1</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;model&quot;</span><span class="fu">,</span><span class="dt">&quot;tool&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;args&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;tokensIn&quot;</span><span class="fu">:</span><span class="dv">812</span><span class="fu">,</span><span class="dt">&quot;tokensOut&quot;</span><span class="fu">:</span><span class="dv">41</span><span class="fu">,</span><span class="dt">&quot;durationMs&quot;</span><span class="fu">:</span><span class="dv">930</span><span class="fu">,</span><span class="dt">&quot;stopReason&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">}</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;runId&quot;</span><span class="fu">:</span><span class="st">&quot;run-42&quot;</span><span class="fu">,</span><span class="dt">&quot;step&quot;</span><span class="fu">:</span><span class="dv">1</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;tool&quot;</span><span class="fu">,</span><span class="dt">&quot;tool&quot;</span><span class="fu">:</span><span class="st">&quot;countErrors&quot;</span><span class="fu">,</span><span class="dt">&quot;args&quot;</span><span class="fu">:{</span><span class="dt">&quot;service&quot;</span><span class="fu">:</span><span class="st">&quot;checkout&quot;</span><span class="fu">,</span><span class="dt">&quot;minutes&quot;</span><span class="fu">:</span><span class="dv">15</span><span class="fu">},</span><span class="dt">&quot;tokensIn&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;tokensOut&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;durationMs&quot;</span><span class="fu">:</span><span class="dv">4</span><span class="fu">,</span><span class="dt">&quot;stopReason&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">}</span></span></code></pre></div>
+<h3 id="chapter-20-a-small-eval-set">Chapter 20: A small eval set<a class="anchor" href="#chapter-20-a-small-eval-set" aria-label="Link to this section">#</a></h3>
+<p>An eval case has fixed input and expected properties. Check the stop reason, whether an alert posted, and required phrases. Do not check exact text, because model output varies.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "One eval case.",
+  "steps": [
+    {"label": "Read the case JSON"},
+    {"label": "Run the watcher on its fixed input"},
+    {"label": "Is the stop reason the expected one?", "no": "Fail"},
+    {"label": "Did an alert post, or not, as expected?", "no": "Fail"},
+    {"label": "Are the required phrases present?", "no": "Fail"},
+    {"label": "Pass", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 20.1. One eval case checks properties, never exact text. A case can pass with different wording on every run.
+</figcaption>
+</figure>
+<p>Write these cases first: a duplicate that should be suppressed, a critical error that needs approval, a flood that hits the rate limit, a novel error with no runbook, and an empty window that ends with no model call.</p>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Case</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>duplicate-suppressed</code></td>
+<td>A duplicate is suppressed</td>
+</tr>
+<tr class="even">
+<td><code>critical-needs-approval</code></td>
+<td>A critical error waits for approval</td>
+</tr>
+<tr class="odd">
+<td><code>flood-hits-rate-limit</code></td>
+<td>A flood hits the rate limit</td>
+</tr>
+<tr class="even">
+<td>novel error, no runbook</td>
+<td>The watcher copes with a novel error that has no runbook</td>
+</tr>
+<tr class="odd">
+<td>empty window</td>
+<td>An empty window ends with no model call</td>
+</tr>
+</tbody>
+</table></div>
+<p class="caption">
+<strong>Table 20.1.</strong> The first five cases. The last two have no case name in the code yet.
+</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="at">@ParameterizedTest</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">@ValueSource</span><span class="op">(</span>strings <span class="op">=</span> <span class="op">{</span><span class="st">&quot;duplicate-suppressed&quot;</span><span class="op">,</span> <span class="st">&quot;critical-needs-approval&quot;</span><span class="op">,</span> <span class="st">&quot;flood-hits-rate-limit&quot;</span><span class="op">})</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="fu">evalCase</span><span class="op">(</span><span class="bu">String</span> caseName<span class="op">)</span> <span class="kw">throws</span> <span class="bu">Exception</span> <span class="op">{</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">// read the case JSON, run the watcher, assert the expected properties</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Run the eval before every change. Use plain JUnit 5.</p>
+<h3 id="chapter-21-failure-drills">Chapter 21: Failure drills<a class="anchor" href="#chapter-21-failure-drills" aria-label="Link to this section">#</a></h3>
+<p>Break one part on purpose and watch the result. Remove a skill description. Return a large tool output. Remove the step cap. Loosen the fingerprint. Remove the citation check. Record the eval score before and after each drill, then revert.</p>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Drill</th>
+<th>What it breaks</th>
+<th>Built in</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Remove a skill description</td>
+<td>Skill selection and the model's choice</td>
+<td><a href="#chapter-14-skills-as-files">Chapter 14</a>, <a href="#chapter-15-skill-selection">Chapter 15</a></td>
+</tr>
+<tr class="even">
+<td>Return a large tool output</td>
+<td>A small parent context</td>
+<td><a href="#chapter-18-context-isolation">Chapter 18</a></td>
+</tr>
+<tr class="odd">
+<td>Remove the step cap</td>
+<td>The <code>STEP_LIMIT</code> stop</td>
+<td><a href="#chapter-6-termination">Chapter 6</a></td>
+</tr>
+<tr class="even">
+<td>Loosen the fingerprint</td>
+<td>Duplicate suppression and the triage cache key</td>
+<td><a href="#chapter-20-a-small-eval-set">Chapter 20</a>, <a href="#chapter-22-cost-optimization">Chapter 22</a></td>
+</tr>
+<tr class="odd">
+<td>Remove the citation check</td>
+<td>Cited answers</td>
+<td><a href="#chapter-12-hybrid-retrieval-inside-the-loop">Chapter 12</a></td>
+</tr>
+</tbody>
+</table></div>
+<p class="caption">
+<strong>Table 21.1.</strong> Each drill undoes one earlier chapter. The middle column is a teaching guide; the eval score is the real measure.
+</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "One drill.",
+  "steps": [
+    {"label": "Record the eval score"},
+    {"label": "Break one part"},
+    {"label": "Run the eval and record the score"},
+    {"label": "Revert the change", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 21.1. One drill at a time, always reverted, so each score change has one cause.
+</figcaption>
+</figure>
+<h3 id="chapter-22-cost-optimization">Chapter 22: Cost optimization<a class="anchor" href="#chapter-22-cost-optimization" aria-label="Link to this section">#</a></h3>
+<p>Measure tokens per run first. Then add a cache with Spring Cache and Caffeine, keyed by error fingerprint, with a ten-minute expiry. Clear it when a runbook changes. Redis can replace Caffeine later with no code change.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="at">@Cacheable</span><span class="op">(</span>cacheNames <span class="op">=</span> <span class="st">&quot;triage&quot;</span><span class="op">,</span> key <span class="op">=</span> <span class="st">&quot;#fingerprint&quot;</span><span class="op">,</span> unless <span class="op">=</span> <span class="st">&quot;#result == null&quot;</span><span class="op">)</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> TriageDecision <span class="fu">triage</span><span class="op">(</span><span class="bu">String</span> fingerprint<span class="op">,</span> <span class="bu">String</span> stackTrace<span class="op">)</span> <span class="op">{</span> <span class="kw">...</span> <span class="op">}</span></span></code></pre></div>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The triage cache.",
+  "nodes": [
+    {"id": "call", "x": 0, "y": 60, "w": 190, "label": "triage(fingerprint, …)", "tone": "platform"},
+    {"id": "cache", "x": 260, "y": 60, "w": 220, "label": "Caffeine cache \"triage\"", "detail": "key = fingerprint · 10 min", "tone": "data"},
+    {"id": "model", "x": 560, "y": 60, "w": 180, "label": "Model", "detail": "only on a miss", "tone": "ai"},
+    {"id": "runbook", "x": 260, "y": 200, "w": 220, "label": "Runbook changes", "tone": "external"},
+    {"id": "redis", "x": 560, "y": 200, "w": 180, "label": "Redis", "detail": "later, no code change", "tone": "muted"}
+  ],
+  "edges": [
+    {"from": "call", "to": "cache", "label": "lookup"},
+    {"from": "cache", "to": "model", "label": "miss", "animated": true},
+    {"from": "runbook", "to": "cache", "label": "clear", "dashed": true},
+    {"from": "redis", "to": "cache", "label": "can replace", "dashed": true, "fromSide": "left", "toSide": "right"}
+  ]
+}
+</script>
+<figcaption>
+Figure 22.1. A repeat fingerprint within ten minutes costs no tokens. A null result is never cached, so a failed triage is retried.
+</figcaption>
+</figure>
+<p>Provider prompt caching does not apply to LM Studio, so skip that step. Each step must lower the token count in the eval run. Remove any step that does not.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "Keep a cost step only if it pays.",
+  "steps": [
+    {"label": "Measure tokens per run"},
+    {"label": "Add one cost step"},
+    {"label": "Did the eval run use fewer tokens?", "no": "Remove the step"},
+    {"label": "Keep it", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 22.2. Every cost step has to show its saving in the eval run.
+</figcaption>
+</figure>
+<h2 id="part-6-durable-execution-with-temporal">Part 6: Durable Execution with Temporal<a class="anchor" href="#part-6-durable-execution-with-temporal" aria-label="Link to this section">#</a></h2>
+<p>Every watcher run is a Temporal workflow. Temporal stores each step, the approval wait, and the result. A worker crash resumes the run where it stopped.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "Temporal keeps the run; workers come and go.",
+  "nodes": [
+    {"id": "temporal", "x": 0, "y": 60, "w": 240, "label": "Temporal server", "detail": "each step, the approval wait, the result", "tone": "operator"},
+    {"id": "w1", "x": 360, "y": 0, "w": 220, "label": "Worker", "detail": "crashes after step 2", "tone": "isolated"},
+    {"id": "w2", "x": 360, "y": 130, "w": 220, "label": "Worker, restarted", "detail": "resumes at step 3", "tone": "platform"}
+  ],
+  "edges": [
+    {"from": "temporal", "to": "w1", "label": "steps 1, 2", "fromSide": "right", "toSide": "left"},
+    {"from": "temporal", "to": "w2", "label": "history, then step 3", "fromSide": "right", "toSide": "left", "animated": true}
+  ]
+}
+</script>
+<figcaption>
+Figure 6.0. The run lives in Temporal, not in the worker. Chapter 23 turns this into an exercise.
+</figcaption>
+</figure>
+<h3 id="chapter-23-run-state-and-messages">Chapter 23: Run state and messages<a class="anchor" href="#chapter-23-run-state-and-messages" aria-label="Link to this section">#</a></h3>
+<p>Temporal workflow history holds the run state. It holds the step count, the state, the approval, and the result. Spring AI Session holds the messages and tool calls. Use the workflow id as the session id. Do not store run state in a separate table. Two stores for one run drift apart.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "One run, two stores, one id.",
+  "nodes": [
+    {"id": "id", "x": 300, "y": 0, "w": 220, "label": "Workflow id", "detail": "= session id", "tone": "platform"},
+    {"id": "hist", "x": 0, "y": 140, "w": 260, "label": "Temporal workflow history", "detail": "step count, state, approval, result", "tone": "operator"},
+    {"id": "sess", "x": 560, "y": 140, "w": 260, "label": "Spring AI Session", "detail": "messages and tool calls", "tone": "data"},
+    {"id": "table", "x": 300, "y": 270, "w": 220, "label": "Separate run-state table", "detail": "do not add: it drifts", "tone": "isolated"}
+  ],
+  "edges": [
+    {"from": "id", "to": "hist", "label": "run state"},
+    {"from": "id", "to": "sess", "label": "messages"}
+  ]
+}
+</script>
+<figcaption>
+Figure 23.1. Each fact about a run has exactly one home. A third store, struck out here, would have to agree with the other two and eventually would not.
+</figcaption>
+</figure>
+<p><strong>Exercise.</strong> Start a run. Kill the worker after step 2. Restart it. Confirm the run completes without repeating step 1.</p>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "The exercise: kill, restart, resume.",
+  "lifelines": [
+    {"id": "you", "label": "You", "tone": "external"},
+    {"id": "temporal", "label": "Temporal", "tone": "operator"},
+    {"id": "w1", "label": "Worker", "tone": "platform"},
+    {"id": "w2", "label": "Worker, restarted", "tone": "platform"}
+  ],
+  "messages": [
+    {"from": "you", "to": "temporal", "label": "start a run"},
+    {"from": "temporal", "to": "w1", "label": "run step 1"},
+    {"from": "w1", "to": "temporal", "label": "step 1 done, recorded", "kind": "response"},
+    {"from": "temporal", "to": "w1", "label": "run step 2"},
+    {"from": "w1", "to": "temporal", "label": "step 2 done, recorded", "kind": "response"},
+    {"from": "you", "to": "w1", "label": "kill the worker", "kind": "note"},
+    {"from": "temporal", "to": "w2", "label": "history: steps 1 and 2 already done"},
+    {"from": "w2", "to": "temporal", "label": "steps 3 onward; step 1 is not repeated", "kind": "response"},
+    {"from": "temporal", "to": "you", "label": "run completes", "kind": "response"}
+  ]
+}
+</script>
+<figcaption>
+Figure 23.2. What you should see in the exercise. Recorded results are replayed from history, not run again.
+</figcaption>
+</figure>
+<h3 id="chapter-24-temporal-basics-for-the-watcher">Chapter 24: Temporal basics for the watcher<a class="anchor" href="#chapter-24-temporal-basics-for-the-watcher" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Concept</th>
+<th>Use in the watcher</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Workflow</td>
+<td>One watcher run</td>
+</tr>
+<tr class="even">
+<td>Activity</td>
+<td>One model call, one tool call, one alert post</td>
+</tr>
+<tr class="odd">
+<td>Signal</td>
+<td>Human approval</td>
+</tr>
+<tr class="even">
+<td>Timer</td>
+<td>Approval deadline</td>
+</tr>
+<tr class="odd">
+<td>Retry policy</td>
+<td>Retry a failed model or tool call</td>
+</tr>
+<tr class="even">
+<td>Query</td>
+<td>Read the current state</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Determinism rule.</strong> Workflow code must give the same result on replay. Model calls, tool calls, database writes, and REST calls go in activities. Use <code>Workflow.await</code>, <code>Workflow.sleep</code>, and <code>Workflow.currentTimeMillis()</code> in the workflow. Do not use <code>Thread.sleep</code> or <code>Instant.now()</code> there.</p>
+<figure class="flow">
+<script type="application/json">
+{
+  "title": "Where does this line of code go?",
+  "steps": [
+    {"label": "Is it pure logic: same input, same result on replay?", "no": "Activity: model, tool, database, or REST call"},
+    {"label": "Does it wait or read the time?", "no": "Workflow code, as is"},
+    {"label": "Workflow code, using Workflow.await, Workflow.sleep, or Workflow.currentTimeMillis()", "tone": "platform"}
+  ]
+}
+</script>
+<figcaption>
+Figure 24.1. The determinism rule as two questions. <code>Thread.sleep</code> and <code>Instant.now()</code> never appear in workflow code.
+</figcaption>
+</figure>
+<div class="sourceCode" id="cb12"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="at">@WorkflowInterface</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">interface</span> WatcherWorkflow <span class="op">{</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">@WorkflowMethod</span> RunResult <span class="fu">run</span><span class="op">(</span>WatchRequest request<span class="op">);</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">@SignalMethod</span> <span class="dt">void</span> <span class="fu">decideApproval</span><span class="op">(</span><span class="dt">boolean</span> approved<span class="op">);</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">@QueryMethod</span> <span class="bu">String</span> <span class="fu">state</span><span class="op">();</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "WatcherWorkflow: start, activities, query, signal, and result.",
+  "lifelines": [
+    {"id": "rest", "label": "REST endpoint", "tone": "platform"},
+    {"id": "wf", "label": "WatcherWorkflow", "tone": "operator"},
+    {"id": "act", "label": "Activities", "tone": "platform"},
+    {"id": "person", "label": "Person", "tone": "external"}
+  ],
+  "messages": [
+    {"from": "rest", "to": "wf", "label": "start: run(WatchRequest)"},
+    {"from": "wf", "to": "act", "label": "model call (retry policy)"},
+    {"from": "act", "to": "wf", "label": "reply", "kind": "response"},
+    {"from": "wf", "to": "act", "label": "tool call (retry policy)"},
+    {"from": "act", "to": "wf", "label": "result", "kind": "response"},
+    {"from": "wf", "to": "wf", "label": "critical: timer for the approval deadline"},
+    {"from": "rest", "to": "wf", "label": "query: state()"},
+    {"from": "wf", "to": "rest", "label": "current state", "kind": "response"},
+    {"from": "person", "to": "wf", "label": "signal: decideApproval(true)"},
+    {"from": "wf", "to": "act", "label": "alert post"},
+    {"from": "wf", "to": "rest", "label": "RunResult", "kind": "response"}
+  ]
+}
+</script>
+<figcaption>
+Figure 24.2. Every concept in the table, in one run. The figure leaves out how the person's approval reaches the signal; in the exercise below, a REST call sends it.
+</figcaption>
+</figure>
+<blockquote>
+<p><strong>Verify:</strong> Confirm the annotation packages and the starter configuration keys for SDK 1.35.0. Temporal's Spring Boot starter starts the worker automatically when the app starts.</p>
+</blockquote>
+<p><strong>Exercise.</strong> Start a run through a REST endpoint. Read its state with a query. Approve a critical run. Confirm one alert posts.</p>
+<h2 id="part-7-capstone">Part 7: Capstone<a class="anchor" href="#part-7-capstone" aria-label="Link to this section">#</a></h2>
+<h3 id="chapter-25-assemble-the-log-incident-watcher">Chapter 25: Assemble the Log Incident Watcher<a class="anchor" href="#chapter-25-assemble-the-log-incident-watcher" aria-label="Link to this section">#</a></h3>
+<p>The capstone runs every part together. Each run is a Temporal workflow. Each model call and each tool call is an activity. Approval is a signal. Memory is Spring AI Session. Retrieval is hybrid search with a cross-encoder reranker.</p>
+<figure class="arch">
+<script type="application/json">
+{
+  "title": "The Log Incident Watcher, assembled.",
+  "nodes": [
+    {"id": "worker", "type": "boundary", "x": 0, "y": 110, "w": 880, "h": 270, "label": "Spring Boot app · worker \"watcher\""},
+    {"id": "person", "x": 0, "y": 0, "w": 160, "label": "Person", "detail": "starts runs, approves", "tone": "external"},
+    {"id": "rest", "x": 200, "y": 0, "w": 160, "label": "REST endpoint", "detail": "start, query, approve", "tone": "platform"},
+    {"id": "temporal", "x": 400, "y": 0, "w": 220, "label": "Temporal server", "detail": "history, timers, signals", "tone": "operator"},
+    {"id": "wf", "x": 400, "y": 150, "w": 220, "label": "WatcherWorkflowImpl", "detail": "the loop, stop rules, approval wait", "tone": "operator"},
+    {"id": "tool", "x": 80, "y": 280, "w": 180, "label": "ToolActivity", "detail": "allowlist, run, save result", "tone": "platform"},
+    {"id": "model", "x": 420, "y": 280, "w": 180, "label": "ModelActivity", "detail": "read session, call, save last", "tone": "platform"},
+    {"id": "alert", "x": 680, "y": 280, "w": 180, "label": "AlertActivity", "detail": "only after approval", "tone": "platform"},
+    {"id": "rerank", "x": 0, "y": 440, "w": 160, "label": "Reranker", "detail": "bge-reranker-v2-m3", "tone": "ai"},
+    {"id": "pg", "x": 210, "y": 440, "w": 200, "label": "PostgreSQL", "detail": "Session, corpus, audit", "tone": "data"},
+    {"id": "gemma", "x": 420, "y": 440, "w": 180, "label": "Gemma", "detail": "LM Studio", "tone": "ai"},
+    {"id": "channel", "x": 680, "y": 440, "w": 180, "label": "Alert channel", "tone": "external"}
+  ],
+  "edges": [
+    {"from": "person", "to": "rest"},
+    {"from": "rest", "to": "temporal"},
+    {"from": "temporal", "to": "wf", "label": "workflow tasks", "both": true},
+    {"from": "wf", "to": "tool", "fromSide": "left", "toSide": "top"},
+    {"from": "wf", "to": "model", "label": "activities"},
+    {"from": "wf", "to": "alert", "fromSide": "right", "toSide": "top"},
+    {"from": "tool", "to": "rerank", "fromSide": "bottom", "toSide": "top"},
+    {"from": "tool", "to": "pg", "fromSide": "bottom", "toSide": "top"},
+    {"from": "model", "to": "pg", "fromSide": "left", "toSide": "top"},
+    {"from": "model", "to": "gemma", "label": "chat", "animated": true},
+    {"from": "alert", "to": "channel"}
+  ]
+}
+</script>
+<figcaption>
+Figure 25.1. Every part of the course in one picture. The workflow only schedules; the three activities do all the I/O. The figure leaves out the step log from Chapter 19 and the triage cache from Chapter 22.
+</figcaption>
+</figure>
+<p>Temporal's Spring AI integration does not yet support Spring AI 2.x. The integration is in public preview with Spring AI 1.1.0 listed. Upgrading it is tracked in temporalio/ai-integrations PR #40. This chapter uses plain activities that do the same job.</p>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Activity</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ModelActivity</code></td>
+<td>Reads the session, calls the model, saves the reply last</td>
+</tr>
+<tr class="even">
+<td><code>ToolActivity</code></td>
+<td>Checks the allowlist, runs the tool, saves the result</td>
+</tr>
+<tr class="odd">
+<td><code>AlertActivity</code></td>
+<td>Posts the alert, only after approval</td>
+</tr>
+</tbody>
+</table></div>
+<p>The workflow runs the loop. It stops on a final answer, a <code>submitFinding</code> tool call, the step limit, loop detection, an approval timeout, or a rejection. It never calls a model or a tool itself.</p>
+<div class="table-wrap"><table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Stop rule</th>
+<th>Limit</th>
+<th><code>StopReason</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Final answer</td>
+<td>—</td>
+<td><code>FINAL_ANSWER</code></td>
+</tr>
+<tr class="even">
+<td><code>submitFinding</code> tool call</td>
+<td>—</td>
+<td><span class="needs-input">NEEDS INPUT: which StopReason a submitFinding stop returns; the enum has no dedicated value</span></td>
+</tr>
+<tr class="odd">
+<td>Step limit</td>
+<td><code>MAX_STEPS = 12</code></td>
+<td><code>STEP_LIMIT</code></td>
+</tr>
+<tr class="even">
+<td>Loop detection</td>
+<td><code>MAX_REPEATS = 3</code></td>
+<td><code>LOOP_DETECTED</code></td>
+</tr>
+<tr class="odd">
+<td>Approval timeout</td>
+<td>one hour (Chapter 9)</td>
+<td><code>APPROVAL_TIMEOUT</code></td>
+</tr>
+<tr class="even">
+<td>Rejection</td>
+<td>—</td>
+<td><code>REJECTED</code></td>
+</tr>
+</tbody>
+</table></div>
+<p class="caption">
+<strong>Table 25.1.</strong> The capstone's stop rules mapped to the <code>StopReason</code> enum from Chapter 6.
+</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode java"><code class="sourceCode java"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="at">@WorkflowImpl</span><span class="op">(</span>workers <span class="op">=</span> <span class="st">&quot;watcher&quot;</span><span class="op">)</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span> <span class="kw">class</span> WatcherWorkflowImpl <span class="kw">implements</span> WatcherWorkflow <span class="op">{</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="dt">static</span> <span class="dt">final</span> <span class="dt">int</span> MAX_STEPS <span class="op">=</span> <span class="dv">12</span><span class="op">;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="dt">static</span> <span class="dt">final</span> <span class="dt">int</span> MAX_REPEATS <span class="op">=</span> <span class="dv">3</span><span class="op">;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">// activity stubs for model, tools, and alerts</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// loop: model turn, then each tool call, then stop rules</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<figure class="seq">
+<script type="application/json">
+{
+  "title": "One critical run, end to end.",
+  "lifelines": [
+    {"id": "rest", "label": "REST endpoint", "tone": "platform"},
+    {"id": "wf", "label": "WatcherWorkflowImpl", "tone": "operator"},
+    {"id": "model", "label": "ModelActivity", "tone": "platform"},
+    {"id": "tool", "label": "ToolActivity", "tone": "platform"},
+    {"id": "alert", "label": "AlertActivity", "tone": "platform"},
+    {"id": "person", "label": "Person", "tone": "external"}
+  ],
+  "messages": [
+    {"from": "rest", "to": "wf", "label": "start run(WatchRequest)"},
+    {"from": "wf", "to": "model", "label": "model turn"},
+    {"from": "model", "to": "model", "label": "read session, call Gemma, save reply last"},
+    {"from": "model", "to": "wf", "label": "reply with tool calls", "kind": "response"},
+    {"from": "wf", "to": "tool", "label": "each tool call"},
+    {"from": "tool", "to": "tool", "label": "check allowlist, run tool, save result"},
+    {"from": "tool", "to": "wf", "label": "results", "kind": "response"},
+    {"from": "wf", "to": "wf", "label": "check stop rules: steps ≤ 12, repeats < 3"},
+    {"from": "wf", "to": "tool", "label": "Repeat model turns until the model calls submitFinding", "kind": "note"},
+    {"from": "wf", "to": "wf", "label": "finding is critical: wait for approval"},
+    {"from": "person", "to": "wf", "label": "signal: decideApproval(true)"},
+    {"from": "wf", "to": "alert", "label": "post the alert"},
+    {"from": "alert", "to": "wf", "label": "posted", "kind": "response"},
+    {"from": "wf", "to": "rest", "label": "RunResult", "kind": "response"}
+  ]
+}
+</script>
+<figcaption>
+Figure 25.2. A critical run, end to end. Step through it with Previous and Next. Placing the approval after <code>submitFinding</code> combines this chapter with Chapter 9.
+</figcaption>
+</figure>
+<p><strong>Rule to teach.</strong> A retried activity can save its message twice if it fails after saving. Save last. Verify whether Session accepts a message id for idempotent saves.</p>
+<p><strong>Switching later.</strong> When <code>io.temporal:spring-ai</code> ships a public release, replace the model activity with its chat model class. The stop rules and approval code stay the same.</p>
+<p><strong>Final exercise.</strong> Run the full eval set. Break one drill from Chapter 21, fix it, and record the final score.</p>
+<h2 id="progress-checklist">Progress checklist<a class="anchor" href="#progress-checklist" aria-label="Link to this section">#</a></h2>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />Front matter and glossary</label></li>
+<li><label><input type="checkbox" checked="" />Part 1: Foundations (chapters 1 to 4)</label></li>
+<li><label><input type="checkbox" checked="" />Part 2: The Loop (chapters 5 to 9)</label></li>
+<li><label><input type="checkbox" checked="" />Part 3: Memory and Retrieval (chapters 10 to 13)</label></li>
+<li><label><input type="checkbox" checked="" />Part 4: Skills and Agents (chapters 14 to 18)</label></li>
+<li><label><input type="checkbox" checked="" />Part 5: Observability, Evaluation, and Cost (chapters 19 to 22)</label></li>
+<li><label><input type="checkbox" checked="" />Part 6: Durable Execution with Temporal (chapters 23 and 24)</label></li>
+<li><label><input type="checkbox" checked="" />Part 7: Capstone (chapter 25)</label></li>
+</ul>
+<h2 id="open-items">Open items<a class="anchor" href="#open-items" aria-label="Link to this section">#</a></h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />Confirm class names and annotations against the pinned versions. Several chapters are marked to verify.</label></li>
+<li><label><input type="checkbox" />Add the fake log data set and runbook files to the course repository.</label></li>
+<li><label><input type="checkbox" />Add an answer key for each chapter exercise.</label></li>
+<li><label><input type="checkbox" />Confirm the BM25 index statement and the probe syntax (Ch. 11, 12).</label></li>
+<li><label><input type="checkbox" />Confirm the reranker <code>/rerank</code> request shape (Ch. 13).</label></li>
+<li><label><input type="checkbox" />Confirm the Temporal annotation packages and starter keys (Ch. 24).</label></li>
+<li><label><input type="checkbox" />Switch Chapter 25 to <code>io.temporal:spring-ai</code> after a public release (PR #40 is open).</label></li>
+</ul>
+<h2 id="changelog">Changelog<a class="anchor" href="#changelog" aria-label="Link to this section">#</a></h2>
+<ul>
+<li>v0.1: Table of contents.</li>
+<li>v0.2: Front matter, glossary, chapters 1 to 7.</li>
+<li>v0.3: Chapters 8 to 25.</li>
+<li>v0.4: Hybrid retrieval with VectorChord (keyword and vector, merged with RRF).</li>
+<li>v0.5: Local BGE-M3 embeddings. Plain JUnit evals. Spring Cache with Caffeine.</li>
+<li>v0.6: Approvals and run state in PostgreSQL. LM Studio embeddings. Skill pre-filtering.</li>
+<li>v0.7: Knowledge graph in Apache AGE. Reranker over REST.</li>
+<li>v0.8: Spring AI Session for short-term memory. LM Studio chat with Gemma.</li>
+<li>v0.9: Temporal required for every run.</li>
+<li>v1.0: Versions pinned. Chapter 25 uses plain Temporal activities. Version policy added.</li>
+<li>v1.1: Consolidated into one document. Spring Boot 4.1.1, Spring AI 2.0.1, Session 0.6.0, Temporal 1.35.0.</li>
+<li>v1.2 (this document): Chapters 2 to 4 match the course repository. Gradle build, <code>application.yaml</code>, <code>TestController</code>, Javadoc, and recorded replies.</li>
+</ul>
+</article></main><script>/* Documentation house style: diagrams and page behaviour.
+   Dependency-free. Diagrams are declared as JSON inside <figure> elements:
+     <figure class="arch"><script type="application/json">{...}<\/script></figure>
+     <figure class="seq"> ... </figure>
+     <figure class="flow"> ... </figure>
+   Motion only where it carries meaning: animated edges for live flows, a
+   stepper for long sequences, a hover ring on nodes that link deeper. */
+(function () {
+  'use strict';
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var figureCount = 0;
+
+  function svg(tag, attrs, parent) {
+    var el = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) if (attrs[k] !== undefined && attrs[k] !== null) el.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(el);
+    return el;
+  }
+  function html(tag, cls, parent, text) {
+    var el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== undefined) el.textContent = text;
+    if (parent) parent.appendChild(el);
+    return el;
+  }
+  function readSpec(fig) {
+    var s = fig.querySelector('script[type="application/json"]');
+    if (!s) return null;
+    try { return JSON.parse(s.textContent); }
+    catch (e) { warn(fig, 'Diagram JSON does not parse: ' + e.message); return null; }
+  }
+  function warn(fig, msg) {
+    console.warn('[docs] ' + msg);
+    html('div', 'dg-warning', fig, '⚠ ' + msg);
+  }
+  function caption(fig, text) {
+    if (!text || fig.querySelector('figcaption')) return;
+    html('figcaption', null, fig, text);
+  }
+  function marker(defs, id, color) {
+    var m = svg('marker', { id: id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 14, markerHeight: 14,
+      markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' }, defs);
+    svg('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: color }, m);
+    return 'url(#' + id + ')';
+  }
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  /* ---------------- Architecture diagrams ---------------- */
+  var PAD = 24;
+
+  function renderArch(fig) {
+    var spec = readSpec(fig);
+    if (!spec) return;
+    var uid = 'dg' + (++figureCount);
+    var nodes = spec.nodes || [], edges = spec.edges || [];
+    var byId = {};
+    nodes.forEach(function (n) { byId[n.id] = n; });
+
+    var canvas = html('div', 'dg-canvas');
+    fig.insertBefore(canvas, fig.firstChild);
+    var stage = html('div', 'dg-stage', canvas);
+
+    // Boundaries first so they sit behind boxes.
+    nodes.filter(function (n) { return n.type === 'boundary'; }).forEach(function (n) {
+      var b = html('div', 'dg-boundary', stage);
+      place(b, n); b.style.height = (n.h || 200) + 'px';
+      html('div', 'dg-boundary__label', b, n.label || '');
+      n._el = b;
+    });
+    nodes.filter(function (n) { return n.type !== 'boundary'; }).forEach(function (n) {
+      var el = html(n.link ? 'a' : 'div', 'dg-node ' + (n.tone || ''), stage);
+      if (n.link) { el.href = n.link; el.title = 'Zoom in: ' + n.label; }
+      place(el, n);
+      if (n.h) el.style.height = n.h + 'px';
+      html('div', 'dg-node__label', el, n.label || n.id);
+      if (n.detail) html('div', 'dg-node__detail', el, n.detail);
+      if (n.link) html('div', 'dg-node__zoom', el, 'zoom in ↗');
+      n._el = el;
+    });
+
+    // Measure boxes now that they are in the DOM.
+    var W = 0, H = 0;
+    nodes.forEach(function (n) {
+      n._w = n.w || (n.type === 'boundary' ? 200 : 168);
+      n._h = n.type === 'boundary' ? (n.h || 200) : (n.h || n._el.offsetHeight || 56);
+      W = Math.max(W, n.x + n._w); H = Math.max(H, n.y + n._h);
+    });
+    W += PAD * 2; H += PAD * 2;
+    stage.style.width = W + 'px'; stage.style.height = H + 'px';
+
+    var layer = svg('svg', { class: 'dg-edges', width: W, height: H, viewBox: '0 0 ' + W + ' ' + H });
+    stage.appendChild(layer);
+    // Edges sit above boundaries but below boxes: move boxes after the SVG.
+    nodes.forEach(function (n) { if (n.type !== 'boundary') stage.appendChild(n._el); });
+    // Edge labels go on their own layer above the boxes so they are never hidden.
+    var labels = svg('svg', { class: 'dg-edges', width: W, height: H, viewBox: '0 0 ' + W + ' ' + H });
+    stage.appendChild(labels);
+
+    var defs = svg('defs', {}, layer);
+    var mDefault = marker(defs, uid + '-a', cssVar('--line-strong', '#9cacb8'));
+    var mMedia = marker(defs, uid + '-m', cssVar('--teal-deep', '#087f79'));
+
+    var missing = [];
+    edges.forEach(function (e) {
+      var a = byId[e.from], b = byId[e.to];
+      if (!a || !b) { missing.push((e.from || '?') + ' → ' + (e.to || '?')); return; }
+      var sides = inferSides(a, b, e);
+      var pts = route(port(a, sides[0]), port(b, sides[1]), sides[0], sides[1]);
+      var cls = 'dg-edge' + (e.media ? ' media' : '') + (e.animated ? ' animated' : '') + (e.dashed ? ' dashed' : '');
+      var m = e.media ? mMedia : mDefault;
+      var path = svg('path', { d: rounded(pts, 8), class: cls, 'marker-end': m, 'marker-start': e.both ? m : null }, layer);
+      if (e.label) edgeLabel(labels, path, e.label);
+    });
+    if (missing.length) warn(fig, 'Edges reference unknown nodes and were not drawn: ' + missing.join(', '));
+
+    caption(fig, spec.title);
+    function fit() {
+      var avail = canvas.clientWidth || W;
+      var s = Math.min(1, avail / W);
+      stage.style.transform = 'scale(' + s + ')';
+      canvas.style.height = Math.ceil(H * s) + 'px';
+    }
+    fit();
+    window.addEventListener('resize', fit);
+  }
+
+  function place(el, n) {
+    el.style.left = (n.x + PAD) + 'px';
+    el.style.top = (n.y + PAD) + 'px';
+    el.style.width = (n.w || (n.type === 'boundary' ? 200 : 168)) + 'px';
+  }
+  function center(n) { return { x: n.x + PAD + n._w / 2, y: n.y + PAD + n._h / 2 }; }
+  function port(n, side) {
+    var x = n.x + PAD, y = n.y + PAD;
+    switch (side) {
+      case 'top': return { x: x + n._w / 2, y: y };
+      case 'bottom': return { x: x + n._w / 2, y: y + n._h };
+      case 'left': return { x: x, y: y + n._h / 2 };
+      default: return { x: x + n._w, y: y + n._h / 2 };
+    }
+  }
+  function inferSides(a, b, e) {
+    if (e.fromSide && e.toSide) return [e.fromSide, e.toSide];
+    var ca = center(a), cb = center(b), dx = cb.x - ca.x, dy = cb.y - ca.y;
+    var vertical = Math.abs(dy) > Math.abs(dx) * 0.6;
+    var from = e.fromSide || (vertical ? (dy > 0 ? 'bottom' : 'top') : (dx > 0 ? 'right' : 'left'));
+    var to = e.toSide || (vertical ? (dy > 0 ? 'top' : 'bottom') : (dx > 0 ? 'left' : 'right'));
+    return [from, to];
+  }
+  function isVert(side) { return side === 'top' || side === 'bottom'; }
+  /* Orthogonal routing with one or two elbows, like a smoothstep edge. */
+  function route(s, t, fs, ts) {
+    if (isVert(fs) && isVert(ts)) {
+      if (Math.abs(s.x - t.x) < 1) return [s, t];
+      var my = (s.y + t.y) / 2;
+      return [s, { x: s.x, y: my }, { x: t.x, y: my }, t];
+    }
+    if (!isVert(fs) && !isVert(ts)) {
+      if (Math.abs(s.y - t.y) < 1) return [s, t];
+      var mx = (s.x + t.x) / 2;
+      return [s, { x: mx, y: s.y }, { x: mx, y: t.y }, t];
+    }
+    return isVert(fs) ? [s, { x: s.x, y: t.y }, t] : [s, { x: t.x, y: s.y }, t];
+  }
+  function rounded(pts, r) {
+    var d = 'M ' + pts[0].x + ' ' + pts[0].y;
+    for (var i = 1; i < pts.length - 1; i++) {
+      var p = pts[i], a = pts[i - 1], b = pts[i + 1];
+      var r1 = Math.min(r, dist(a, p) / 2, dist(p, b) / 2);
+      var p1 = toward(p, a, r1), p2 = toward(p, b, r1);
+      d += ' L ' + p1.x + ' ' + p1.y + ' Q ' + p.x + ' ' + p.y + ' ' + p2.x + ' ' + p2.y;
+    }
+    var last = pts[pts.length - 1];
+    return d + ' L ' + last.x + ' ' + last.y;
+  }
+  function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+  function toward(p, q, len) {
+    var d = dist(p, q) || 1;
+    return { x: p.x + (q.x - p.x) * len / d, y: p.y + (q.y - p.y) * len / d };
+  }
+  function edgeLabel(layer, path, text) {
+    var total = path.getTotalLength ? path.getTotalLength() : 0;
+    var mid = total ? path.getPointAtLength(total / 2) : { x: 0, y: 0 };
+    var g = svg('g', { class: 'dg-edge-label' }, layer);
+    var rect = svg('rect', { rx: 3 }, g);
+    var t = svg('text', { x: mid.x, y: mid.y + 4, 'text-anchor': 'middle' }, g);
+    t.textContent = text;
+    var bb = t.getBBox ? t.getBBox() : { x: mid.x, y: mid.y, width: 0, height: 0 };
+    rect.setAttribute('x', bb.x - 4); rect.setAttribute('y', bb.y - 1);
+    rect.setAttribute('width', bb.width + 8); rect.setAttribute('height', bb.height + 2);
+  }
+
+  /* ---------------- Sequence diagrams ---------------- */
+  var COL = 150, ROW = 36, TOP = 66, LEFT = 20;
+  var TONES = { platform: '--teal-deep', operator: '--orange', external: '--line-strong', subscriber: '--purple' };
+
+  function headLines(label) {
+    if (label.length <= 18) return [label];
+    var mid = label.length / 2, best = -1;
+    for (var i = 0; i < label.length; i++)
+      if (label[i] === ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+    return best < 0 ? [label] : [label.slice(0, best), label.slice(best + 1)];
+  }
+
+  function renderSeq(fig) {
+    var spec = readSpec(fig);
+    if (!spec) return;
+    var uid = 'sq' + (++figureCount);
+    var lifelines = spec.lifelines || [], messages = spec.messages || [];
+    var stepper = spec.stepper !== undefined ? spec.stepper : messages.length > 4;
+    var idx = {};
+    lifelines.forEach(function (l, i) { idx[l.id] = i; });
+    var bad = messages.filter(function (m) { return !(m.from in idx) || !(m.to in idx); });
+    if (bad.length) warn(fig, 'Messages reference unknown lifelines: ' + bad.map(function (m) { return m.from + ' → ' + m.to; }).join(', '));
+    messages = messages.filter(function (m) { return m.from in idx && m.to in idx; });
+
+    var X = function (id) { return LEFT + idx[id] * COL + COL / 2; };
+    var width = LEFT * 2 + lifelines.length * COL;
+    var height = TOP + (messages.length + 1) * ROW;
+    var scroll = html('div', 'seq-scroll');
+    fig.insertBefore(scroll, fig.firstChild);
+    var root = svg('svg', { viewBox: '0 0 ' + width + ' ' + height, width: width, height: height, role: 'img', 'aria-label': spec.title || 'Sequence diagram' }, scroll);
+    var defs = svg('defs', {}, root);
+    var mNormal = marker(defs, uid + '-a', cssVar('--ink', '#0d2238'));
+    var mActive = marker(defs, uid + '-b', cssVar('--link', '#0b827c'));
+    // Arrowheads in sequences are a little smaller than in architecture diagrams.
+    [].forEach.call(defs.querySelectorAll('marker'), function (m) { m.setAttribute('markerWidth', 9); m.setAttribute('markerHeight', 9); });
+
+    lifelines.forEach(function (l) {
+      var cx = X(l.id);
+      svg('line', { x1: cx, y1: TOP, x2: cx, y2: height - 8, class: 'seq-lifeline' }, root);
+      svg('rect', { x: cx - 68, y: 8, width: 136, height: 44, rx: 8, class: 'seq-head', style: 'stroke: var(' + (TONES[l.tone] || TONES.platform) + ')' }, root);
+      var lines = headLines(l.label);
+      lines.forEach(function (line, i) {
+        var t = svg('text', { x: cx, y: lines.length === 1 ? 35 : 27 + i * 16, 'text-anchor': 'middle', class: 'seq-head-text' }, root);
+        t.textContent = line;
+      });
+    });
+
+    var groups = messages.map(function (m, i) {
+      var y = TOP + (i + 1) * ROW, x1 = X(m.from), x2 = X(m.to), kind = m.kind || 'request';
+      var g = svg('g', { class: stepper ? 'clickable' : null }, root);
+      var shape, labelX;
+      if (kind === 'note') {
+        var w = Math.min(Math.max(Math.abs(x2 - x1) + 120, m.label.length * 6.2 + 40), width - 2 * LEFT);
+        var nx = Math.min(Math.max(LEFT, (x1 + x2) / 2 - w / 2), width - LEFT - w);
+        shape = svg('rect', { x: nx, y: y - 14, width: w, height: 22, rx: 4, class: 'seq-note' }, g);
+        labelX = nx + w / 2;
+      } else if (m.from === m.to) {
+        shape = svg('path', { d: 'M ' + x1 + ' ' + (y - 10) + ' h 28 v 20 h -28', class: 'seq-msg ' + kind, 'marker-end': mNormal }, g);
+        var half = m.label.length * 3.1 + 12;
+        labelX = Math.min(Math.max(x1 + 14, LEFT + half), width - LEFT - half);
+      } else {
+        shape = svg('line', { x1: x1, y1: y, x2: x2, y2: y, class: 'seq-msg ' + kind, 'marker-end': mNormal }, g);
+        labelX = (x1 + x2) / 2;
+      }
+      var text = svg('text', { x: labelX, y: m.from === m.to ? y - 14 : y - 4, 'text-anchor': 'middle', class: 'seq-label' }, g);
+      text.textContent = (i + 1) + '. ' + m.label;
+      return { g: g, shape: shape, text: text, kind: kind };
+    });
+
+    caption(fig, spec.title);
+    if (!stepper) return;
+
+    var active = -1;
+    var controls = html('div', 'seq-controls');
+    fig.insertBefore(controls, fig.querySelector('figcaption'));
+    controls.setAttribute('role', 'group');
+    controls.setAttribute('aria-label', 'Step through the sequence');
+    var prev = html('button', null, controls, '← Previous'); prev.type = 'button';
+    var step = html('span', 'seq-step', controls);
+    var next = html('button', null, controls, 'Next →'); next.type = 'button';
+
+    function paint() {
+      groups.forEach(function (o, i) {
+        var on = i === active, dim = active >= 0 && !on;
+        o.shape.classList.toggle('active', on && o.kind !== 'note');
+        o.shape.classList.toggle('dim', dim);
+        o.text.classList.toggle('active', on);
+        o.text.classList.toggle('dim', dim);
+        if (o.kind !== 'note') o.shape.setAttribute('marker-end', on ? mActive : mNormal);
+      });
+      step.textContent = active < 0 ? 'All steps' : 'Step ' + (active + 1) + ' of ' + messages.length + ': ' + messages[active].label;
+      prev.disabled = active < 0;
+      next.disabled = active >= messages.length - 1;
+    }
+    groups.forEach(function (o, i) { o.g.addEventListener('click', function () { active = active === i ? -1 : i; paint(); }); });
+    prev.addEventListener('click', function () { active = Math.max(-1, active - 1); paint(); });
+    next.addEventListener('click', function () { active = Math.min(messages.length - 1, active + 1); paint(); });
+    paint();
+  }
+
+  /* ---------------- Flow chains ---------------- */
+  function renderFlow(fig) {
+    var spec = readSpec(fig);
+    if (!spec) return;
+    var chain = html('div', 'flow-chain');
+    fig.insertBefore(chain, fig.firstChild);
+    (spec.steps || []).forEach(function (s, i) {
+      if (i) html('div', 'flow-arrow', chain);
+      var row = html('div', 'flow-row', chain);
+      html('div', 'flow-step ' + (s.tone || ''), row, s.label);
+      if (s.no) html('div', 'flow-exit', row, s.no);
+    });
+    caption(fig, spec.title);
+  }
+
+  /* ---------------- Page behaviour ---------------- */
+  function tocSpy() {
+    var links = [].slice.call(document.querySelectorAll('.toc a'));
+    if (!links.length || !('IntersectionObserver' in window)) return;
+    var map = {};
+    links.forEach(function (a) { map[decodeURIComponent(a.hash.slice(1))] = a; });
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        links.forEach(function (a) { a.classList.remove('active'); });
+        var a = map[en.target.id];
+        if (a) a.classList.add('active');
+      });
+    }, { rootMargin: '0px 0px -70% 0px' });
+    Object.keys(map).forEach(function (id) { var h = document.getElementById(id); if (h) obs.observe(h); });
+  }
+  function mobileMenu() {
+    var btn = document.querySelector('.topbar__menu');
+    if (!btn) return;
+    btn.addEventListener('click', function (e) { e.stopPropagation(); document.body.classList.toggle('nav-open'); });
+    document.addEventListener('click', function (e) {
+      if (document.body.classList.contains('nav-open') && !e.target.closest('.sidebar')) document.body.classList.remove('nav-open');
+    });
+  }
+
+  function init() {
+    [].forEach.call(document.querySelectorAll('figure.arch'), renderArch);
+    [].forEach.call(document.querySelectorAll('figure.seq'), renderSeq);
+    [].forEach.call(document.querySelectorAll('figure.flow'), renderFlow);
+    tocSpy();
+    mobileMenu();
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(init); else document.addEventListener('DOMContentLoaded', init);
+})();
+</script></body></html>
