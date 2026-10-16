@@ -29,7 +29,7 @@ PAGES = os.path.join(COURSE, 'pages', 'course')
 HUGO_FILES = os.path.join(COURSE, 'hugo')
 SLUG = 'agent-harness-spring-ai'
 DATE = '2026-10-10T00:00:00Z'
-DOCS_JS = os.path.expanduser('~/.claude/skills/documentation/assets/site/docs.js')
+DOCS_JS = os.path.join(COURSE, 'assets', 'docs.js')
 DEFAULT_SITE = os.path.join(COURSE, '..', '..', '..', '..', 'garage-education', 'website')
 
 COURSE_INDEX = """---

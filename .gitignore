@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Course site (build output of course/tools/build_site.py) ###
+site/
