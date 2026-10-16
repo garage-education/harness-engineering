@@ -8,6 +8,8 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.AssistantMessage.ToolCall;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Sends one question to the chat model, with the tools in {@link LogTools}.
  *
@@ -16,25 +18,18 @@ import org.springframework.stereotype.Service;
  *   <li>{@link #askAutoToolCall} lets {@link ChatClient} run each tool call and returns the final text.</li>
  *   <li>{@link #askHaltToolCall} stops after the first reply and returns the tool calls, unrun.</li>
  * </ul>
+ *
+ * <p>{@code @RequiredArgsConstructor} generates a constructor for the {@code final} fields.
+ * Spring calls it and passes in the {@link ChatClient} and the {@link LogTools}.
  */
 @Service
+@RequiredArgsConstructor
 public class Assistant {
 
     private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
 
     private final ChatClient chat;
     private final LogTools logTools;
-
-    /**
-     * Builds the client from the builder that Spring Boot provides.
-     *
-     * @param builder  the {@link ChatClient.Builder} from the OpenAI starter
-     * @param logTools the tools the model can call
-     */
-    public Assistant(ChatClient.Builder builder, LogTools logTools) {
-        this.chat = builder.build();
-        this.logTools = logTools;
-    }
 
     /**
      * Asks the model one question and lets {@link ChatClient} run the tools.

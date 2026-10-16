@@ -51,7 +51,7 @@ public class LogTools {
 
 - `@Tool` names the method as a tool. Its description tells the model when to use it.
 - `@ToolParam` describes each argument. The model fills them in.
-- `@Component` makes `LogTools` a bean, so Spring can inject it.
+- `@Component` makes `LogTools` a bean, so Spring can pass it to other classes.
 
 Figure 4.1 shows what the model sees.
 
@@ -86,28 +86,18 @@ Figure 4.1 shows what the model sees.
 
 Make two changes to the `Assistant` from Chapter 3:
 
-- Inject `LogTools` in the constructor.
+- Add a `private final LogTools logTools;` field. Lombok adds it to the constructor, and Spring passes in the bean.
 - Pass the tools with `.tools(logTools)`.
 
 ```java
 @Service
+@RequiredArgsConstructor
 public class Assistant {
 
     private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
 
     private final ChatClient chat;
     private final LogTools logTools;
-
-    /**
-     * Builds the client from the builder that Spring Boot provides.
-     *
-     * @param builder  the {@link ChatClient.Builder} from the OpenAI starter
-     * @param logTools the tools the model can call
-     */
-    public Assistant(ChatClient.Builder builder, LogTools logTools) {
-        this.chat = builder.build();
-        this.logTools = logTools;
-    }
 
     /**
      * Asks the model one question and lets {@link ChatClient} run the tools.

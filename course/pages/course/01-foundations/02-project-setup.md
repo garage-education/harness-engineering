@@ -59,10 +59,18 @@ repositories {
 }
 
 extra["springAiVersion"] = "2.0.1"
+// Spring Boot 4.1.1 manages Lombok 1.18.46, which fails on JDK 27. 1.18.48 adds JDK 27 support.
+extra["lombok.version"] = "1.18.48"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.ai:spring-ai-starter-model-openai")
+
+	compileOnly("org.projectlombok:lombok")
+	annotationProcessor("org.projectlombok:lombok")
+
+	developmentOnly("org.springframework.boot:spring-boot-devtools")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -81,7 +89,12 @@ tasks.withType<Test> {
 - `spring-ai-bom` pins every Spring AI module to 2.0.1.
 - `spring-boot-starter-webmvc` serves HTTP on port 8080.
 - `spring-ai-starter-model-openai` creates the `ChatClient.Builder`.
+- Lombok writes repeated Java code for you, such as constructors. It runs at compile time only.
+- `lombok.version` pins Lombok 1.18.48. Spring Boot 4.1.1 picks 1.18.46, which fails to compile on Java 27.
+- DevTools restarts the app when compiled classes change. It never ships in the final JAR.
 - The toolchain is Java 27. Spring Boot 4.1.1 needs Java 17 or later.
+
+In IntelliJ IDEA, accept the prompt to enable annotation processing. Lombok needs it.
 
 `settings.gradle.kts` holds one line:
 

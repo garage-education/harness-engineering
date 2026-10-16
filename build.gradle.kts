@@ -18,10 +18,15 @@ repositories {
 }
 
 extra["springAiVersion"] = "2.0.1"
+// Spring Boot 4.1.1 manages Lombok 1.18.46, which fails on JDK 27. 1.18.48 adds JDK 27 support.
+extra["lombok.version"] = "1.18.48"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.ai:spring-ai-starter-model-openai")
+
+	compileOnly("org.projectlombok:lombok")
+	annotationProcessor("org.projectlombok:lombok")
 
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 

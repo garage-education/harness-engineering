@@ -3,12 +3,9 @@ package com.garageeducation.harness;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.springframework.ai.chat.client.AdvisorParams;
 import org.springframework.ai.chat.client.ChatClient;
@@ -19,13 +16,14 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 
 import com.garageeducation.harness.RunResult.StopReason;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * The agent loop, written by hand.
@@ -37,6 +35,7 @@ import com.garageeducation.harness.RunResult.StopReason;
  * This class turns that advisor off, so the model's tool calls come back to this code.
  */
 @Service
+@RequiredArgsConstructor
 public class AgentLoop {
 
     /** The most model calls one run can make. */
@@ -55,20 +54,6 @@ public class AgentLoop {
 
     private final ChatClient chat;
     private final LogTools logTools;
-    private final Map<String, ToolCallback> tools;
-
-    /**
-     * Builds the client and indexes the tools by name.
-     *
-     * @param builder  the {@link ChatClient.Builder} from the OpenAI starter
-     * @param logTools the tools the model can call
-     */
-    public AgentLoop(ChatClient.Builder builder, LogTools logTools) {
-        this.chat = builder.build();
-        this.logTools = logTools;
-        this.tools = Arrays.stream(ToolCallbacks.from(logTools))
-                .collect(Collectors.toMap(tool -> tool.getToolDefinition().name(), Function.identity()));
-    }
 
     /**
      * Runs the loop for one question.
@@ -77,7 +62,10 @@ public class AgentLoop {
      * @return the answer, the stop reason, the step count, and the tokens used
      */
     public RunResult run(String question) {
-        List<Message> messages = new ArrayList<>(List.of(new SystemMessage(SYSTEM), new UserMessage(question)));
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(SYSTEM));
+        messages.add(new UserMessage(question));
+
         Map<String, Integer> seenCalls = new HashMap<>();
         Instant deadline = Instant.now().plus(TIMEOUT);
         int tokens = 0;
@@ -92,7 +80,7 @@ public class AgentLoop {
                     .chatResponse();
             AssistantMessage reply = response.getResult().getOutput();
             messages.add(reply);
-            tokens += totalTokens(response);
+            tokens += response.getMetadata().getUsage().getTotalTokens();
 
             // 2. A reply without tool calls is the answer.
             if (!reply.hasToolCalls()) {
@@ -107,43 +95,40 @@ public class AgentLoop {
                 return new RunResult(null, StopReason.TIMEOUT, step, tokens);
             }
             for (ToolCall call : reply.getToolCalls()) {
-                if (seenCalls.merge(call.name() + call.arguments(), 1, Integer::sum) >= MAX_REPEATS) {
+                String key = call.name() + call.arguments();
+                int count = seenCalls.getOrDefault(key, 0) + 1;
+                seenCalls.put(key, count);
+                if (count >= MAX_REPEATS) {
                     return new RunResult(null, StopReason.LOOP_DETECTED, step, tokens);
                 }
             }
 
             // 3. Run each tool. 4. Add the results to the messages.
-            messages.add(runTools(reply.getToolCalls()));
+            List<ToolResponse> results = new ArrayList<>();
+            for (ToolCall call : reply.getToolCalls()) {
+                results.add(new ToolResponse(call.id(), call.name(), runTool(call)));
+            }
+            messages.add(ToolResponseMessage.builder().responses(results).build());
         }
         return new RunResult(null, StopReason.STEP_LIMIT, MAX_STEPS, tokens);
     }
 
     /**
-     * Runs each tool call and collects the results in one message.
+     * Runs one tool call and returns its result as text.
      *
-     * <p>An unknown tool name returns an error text to the model instead of failing the run.
+     * <p>{@code ToolCallbacks.from} wraps each {@code @Tool} method in a {@link ToolCallback}.
+     * The loop picks the callback whose name matches the call. An unknown name returns an
+     * error text to the model instead of failing the run.
      *
-     * @param calls the tool calls from one model reply
-     * @return one {@link ToolResponseMessage} with a response for each call
+     * @param call one tool call from the model's reply
+     * @return the tool's result, or an error text for an unknown tool
      */
-    private ToolResponseMessage runTools(List<ToolCall> calls) {
-        List<ToolResponse> responses = new ArrayList<>();
-        for (ToolCall call : calls) {
-            ToolCallback tool = tools.get(call.name());
-            String result = tool == null ? "Unknown tool: " + call.name() : tool.call(call.arguments());
-            responses.add(new ToolResponse(call.id(), call.name(), result));
+    private String runTool(ToolCall call) {
+        for (ToolCallback tool : ToolCallbacks.from(logTools)) {
+            if (tool.getToolDefinition().name().equals(call.name())) {
+                return tool.call(call.arguments());
+            }
         }
-        return ToolResponseMessage.builder().responses(responses).build();
-    }
-
-    /**
-     * Reads the token count from the response metadata.
-     *
-     * @param response one model response
-     * @return the total tokens for this call, or 0 when the server does not report usage
-     */
-    private static int totalTokens(ChatResponse response) {
-        Usage usage = response.getMetadata().getUsage();
-        return usage.getTotalTokens();
+        return "Unknown tool: " + call.name();
     }
 }

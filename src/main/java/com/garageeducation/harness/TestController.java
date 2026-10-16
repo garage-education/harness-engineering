@@ -7,27 +7,19 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Exposes {@link Assistant} and {@link AgentLoop} over HTTP for manual tests.
  *
  * <p>Example: {@code GET http://localhost:8080/askAutoToolCall?input=how many error events in checkout service?}
  */
 @RestController
+@RequiredArgsConstructor
 public class TestController {
 
     private final Assistant assistant;
     private final AgentLoop agentLoop;
-
-    /**
-     * Creates the controller.
-     *
-     * @param assistant the assistant that answers with one request
-     * @param agentLoop the hand-written agent loop
-     */
-    public TestController(Assistant assistant, AgentLoop agentLoop) {
-        this.assistant = assistant;
-        this.agentLoop = agentLoop;
-    }
 
     /**
      * Sends the question to the model. {@code ChatClient} runs the tools.
@@ -52,7 +44,7 @@ public class TestController {
     }
 
     /**
-     * Runs the hand-written agent loop for the question.
+     * Runs the handwritten agent loop for the question.
      *
      * @param input the question; the request fails without it
      * @return the run result as JSON: answer, reason, steps, and tokens

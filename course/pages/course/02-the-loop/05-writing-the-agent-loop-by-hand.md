@@ -136,11 +136,7 @@ Create `AgentLoop.java`:
 package com.garageeducation.harness;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.springframework.ai.chat.client.AdvisorParams;
 import org.springframework.ai.chat.client.ChatClient;
@@ -151,7 +147,6 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
@@ -159,10 +154,19 @@ import org.springframework.stereotype.Service;
 
 import com.garageeducation.harness.RunResult.StopReason;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * The agent loop, written by hand.
+ *
+ * <p>Each step sends the full message list to the model. A reply without tool calls ends the run.
+ * Otherwise, the loop runs each tool, adds the results to the messages, and repeats.
+ *
+ * <p>{@link ChatClient} runs tools by itself through its {@code ToolCallingAdvisor}.
+ * This class turns that advisor off, so the model's tool calls come back to this code.
  */
 @Service
+@RequiredArgsConstructor
 public class AgentLoop {
 
     /** The most model calls one run can make. */
@@ -172,20 +176,6 @@ public class AgentLoop {
 
     private final ChatClient chat;
     private final LogTools logTools;
-    private final Map<String, ToolCallback> tools;
-
-    /**
-     * Builds the client and indexes the tools by name.
-     *
-     * @param builder  the {@link ChatClient.Builder} from the OpenAI starter
-     * @param logTools the tools the model can call
-     */
-    public AgentLoop(ChatClient.Builder builder, LogTools logTools) {
-        this.chat = builder.build();
-        this.logTools = logTools;
-        this.tools = Arrays.stream(ToolCallbacks.from(logTools))
-                .collect(Collectors.toMap(tool -> tool.getToolDefinition().name(), Function.identity()));
-    }
 
     /**
      * Runs the loop for one question.
@@ -194,7 +184,10 @@ public class AgentLoop {
      * @return the answer, the stop reason, the step count, and the tokens used
      */
     public RunResult run(String question) {
-        List<Message> messages = new ArrayList<>(List.of(new SystemMessage(SYSTEM), new UserMessage(question)));
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(SYSTEM));
+        messages.add(new UserMessage(question));
+
         int tokens = 0;
 
         for (int step = 1; step <= MAX_STEPS; step++) {
@@ -207,7 +200,7 @@ public class AgentLoop {
                     .chatResponse();
             AssistantMessage reply = response.getResult().getOutput();
             messages.add(reply);
-            tokens += totalTokens(response);
+            tokens += response.getMetadata().getUsage().getTotalTokens();
 
             // 2. A reply without tool calls is the answer.
             if (!reply.hasToolCalls()) {
@@ -215,38 +208,32 @@ public class AgentLoop {
             }
 
             // 3. Run each tool. 4. Add the results to the messages.
-            messages.add(runTools(reply.getToolCalls()));
+            List<ToolResponse> results = new ArrayList<>();
+            for (ToolCall call : reply.getToolCalls()) {
+                results.add(new ToolResponse(call.id(), call.name(), runTool(call)));
+            }
+            messages.add(ToolResponseMessage.builder().responses(results).build());
         }
         return new RunResult(null, StopReason.STEP_LIMIT, MAX_STEPS, tokens);
     }
 
     /**
-     * Runs each tool call and collects the results in one message.
+     * Runs one tool call and returns its result as text.
      *
-     * <p>An unknown tool name returns an error text to the model instead of failing the run.
+     * <p>{@code ToolCallbacks.from} wraps each {@code @Tool} method in a {@link ToolCallback}.
+     * The loop picks the callback whose name matches the call. An unknown name returns an
+     * error text to the model instead of failing the run.
      *
-     * @param calls the tool calls from one model reply
-     * @return one {@link ToolResponseMessage} with a response for each call
+     * @param call one tool call from the model's reply
+     * @return the tool's result, or an error text for an unknown tool
      */
-    private ToolResponseMessage runTools(List<ToolCall> calls) {
-        List<ToolResponse> responses = new ArrayList<>();
-        for (ToolCall call : calls) {
-            ToolCallback tool = tools.get(call.name());
-            String result = tool == null ? "Unknown tool: " + call.name() : tool.call(call.arguments());
-            responses.add(new ToolResponse(call.id(), call.name(), result));
+    private String runTool(ToolCall call) {
+        for (ToolCallback tool : ToolCallbacks.from(logTools)) {
+            if (tool.getToolDefinition().name().equals(call.name())) {
+                return tool.call(call.arguments());
+            }
         }
-        return ToolResponseMessage.builder().responses(responses).build();
-    }
-
-    /**
-     * Reads the token count from the response metadata.
-     *
-     * @param response one model response
-     * @return the total tokens for this call, or 0 when the server does not report usage
-     */
-    private static int totalTokens(ChatResponse response) {
-        Usage usage = response.getMetadata().getUsage();
-        return usage.getTotalTokens();
+        return "Unknown tool: " + call.name();
     }
 }
 ```
@@ -255,8 +242,8 @@ Read the code in four parts:
 
 - **The message list.** It starts with the system and user messages. Each step adds the reply and the tool results. The model has no memory, so each call resends the full list.
 - **The model call.** It is the Step 1 request with `.messages(messages)` in place of `.system()` and `.user()`.
-- **The tool map.** `ToolCallbacks.from(logTools)` wraps each `@Tool` method in a `ToolCallback`. The map finds a callback by the name in the tool call.
-- **`runTools`.** `tool.call(arguments)` parses the JSON arguments and calls `countErrors`. Each result keeps the call's id, so the model can match it to its request.
+- **The tool results.** Each `ToolResponse` keeps the call's id, so the model can match each result to its request. All results go back in one `ToolResponseMessage`.
+- **`runTool`.** `ToolCallbacks.from(logTools)` wraps each `@Tool` method in a `ToolCallback`. The loop finds the callback with the call's name. `tool.call(arguments)` parses the JSON arguments and runs `countErrors`.
 
 Figure 5.2 shows one run.
 
@@ -295,7 +282,7 @@ public RunResult run(@RequestParam String input) {
 }
 ```
 
-Inject `AgentLoop` in the controller's constructor, next to `Assistant`. Restart the app, then run:
+Add a `private final AgentLoop agentLoop;` field next to `assistant`. Lombok adds it to the constructor. Restart the app, then run:
 
 ```bash
 curl -G http://localhost:8080/run --data-urlencode "input=how many error events in checkout service?"
