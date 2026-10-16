@@ -47,9 +47,9 @@ Content-Type: application/json
 
 
 ### Chapter 3 · One model call, no tools
-# Only exists at the end of Chapter 3. Chapter 4 renames /ask to /askAutoToolCall.
 # Expect the model to ask for logs: it has no data yet.
-GET {{app}}/ask?input=how many error events?
+# After Chapter 4 the same request runs the tool instead.
+GET {{app}}/askAutoToolCall?input=how many error events?
 
 
 ### Chapter 4 · No service name: the model asks for one

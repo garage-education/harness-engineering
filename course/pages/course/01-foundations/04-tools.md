@@ -84,10 +84,9 @@ Figure 4.1 shows what the model sees.
 
 ## Step 2: Attach the tool
 
-Make three changes to the `Assistant` from Chapter 3:
+Make two changes to the `Assistant` from Chapter 3:
 
 - Inject `LogTools` in the constructor.
-- Rename `ask` to `askAutoToolCall`.
 - Pass the tools with `.tools(logTools)`.
 
 ```java
@@ -127,15 +126,6 @@ public class Assistant {
                 .call()
                 .content();
     }
-}
-```
-
-Rename the endpoint in `TestController` to match:
-
-```java
-@GetMapping("/askAutoToolCall")
-public String askAutoToolCall(@RequestParam String input) {
-    return assistant.askAutoToolCall(input);
 }
 ```
 
