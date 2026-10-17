@@ -1,0 +1,7 @@
+# Store and check out text files with LF line endings on every OS.
+# This overrides each machine's core.autocrlf setting.
+* text=auto eol=lf
+
+/java/gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary

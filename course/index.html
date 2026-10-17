@@ -1,0 +1,70 @@
+<!--
+title: Building an Agent Harness with Spring AI
+-->
+<section class="hero">
+  <div class="wrap">
+    <p class="hero__eyebrow">Course · Java · Spring AI 2.0.1</p>
+    <h1>Build the code around the model.</h1>
+    <p class="hero__lede">This book teaches engineers to build an agent harness with Spring AI in Java. Chapters 2 to 7 also show every step in Python with LangChain. The running example is the Log Incident Watcher. Read the chapters in order. Each chapter adds one idea.</p>
+    <div class="actions">
+      <a class="btn btn--primary" href="course/00-start/01-front-matter.html">Start the course</a>
+      <a class="btn btn--secondary" href="course/07-capstone/25-assemble-the-log-incident-watcher.html">See the capstone</a>
+    </div>
+
+    <div class="timeline-wrap">
+      <div class="timeline-ends"><span>One model call</span><span>A durable agent</span></div>
+      <ol class="timeline" style="--moments: 7">
+        <li class="moment cat-1"><a href="course/01-foundations/01-why-a-harness.html">
+          <span class="moment__when">Ch 1–4</span><strong>Foundations</strong>
+          <p>The model call and tools.</p></a></li>
+        <li class="moment cat-2"><a href="course/02-the-loop/05-writing-the-agent-loop-by-hand.html">
+          <span class="moment__when">Ch 5–9</span><strong>The Loop</strong>
+          <p>Termination, guardrails, approval.</p></a></li>
+        <li class="moment cat-3"><a href="course/03-memory-and-retrieval/10-short-term-memory-with-spring-ai-session.html">
+          <span class="moment__when">Ch 10–13</span><strong>Memory</strong>
+          <p>Session and hybrid retrieval.</p></a></li>
+        <li class="moment cat-4"><a href="course/04-skills-and-agents/14-skills-as-files.html">
+          <span class="moment__when">Ch 14–18</span><strong>Skills and Agents</strong>
+          <p>Skills, sub-agents, isolation.</p></a></li>
+        <li class="moment" style="--accent: var(--cat-5)"><a href="course/05-observability-evaluation-cost/19-step-logging.html">
+          <span class="moment__when">Ch 19–22</span><strong>Evaluation</strong>
+          <p>Logs, evals, drills, cost.</p></a></li>
+        <li class="moment" style="--accent: var(--cat-6)"><a href="course/06-durable-execution/00-overview.html">
+          <span class="moment__when">Ch 23–24</span><strong>Temporal</strong>
+          <p>Durable runs.</p></a></li>
+        <li class="moment" style="--accent: var(--cat-7)"><a href="course/07-capstone/25-assemble-the-log-incident-watcher.html">
+          <span class="moment__when">Ch 25</span><strong>Capstone</strong>
+          <p>The watcher, assembled.</p></a></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Seven parts. Run the code in each chapter before the next.</h2>
+      <p>All examples use fake data and run offline.</p>
+    </div>
+    <ul class="rows">
+      <li><a href="course/01-foundations/01-why-a-harness.html"><strong>Part 1: Foundations</strong><span>Why a harness, project setup, the model call, and tools.</span><em>Chapters 1–4 →</em></a></li>
+      <li><a href="course/02-the-loop/05-writing-the-agent-loop-by-hand.html"><strong>Part 2: The Loop</strong><span>The loop by hand, termination, guardrails, graphs, and human-in-the-loop.</span><em>Chapters 5–9 →</em></a></li>
+      <li><a href="course/03-memory-and-retrieval/10-short-term-memory-with-spring-ai-session.html"><strong>Part 3: Memory and Retrieval</strong><span>Spring AI Session, hybrid storage, RRF, and a reranker.</span><em>Chapters 10–13 →</em></a></li>
+      <li><a href="course/04-skills-and-agents/14-skills-as-files.html"><strong>Part 4: Skills and Agents</strong><span>Skills as files, skill selection, sub-agents, agent selection, and context isolation.</span><em>Chapters 14–18 →</em></a></li>
+      <li><a href="course/05-observability-evaluation-cost/19-step-logging.html"><strong>Part 5: Observability, Evaluation, and Cost</strong><span>Step logging, a small eval set, failure drills, and cost.</span><em>Chapters 19–22 →</em></a></li>
+      <li><a href="course/06-durable-execution/00-overview.html"><strong>Part 6: Durable Execution with Temporal</strong><span>Run state and messages, and Temporal basics for the watcher.</span><em>Chapters 23–24 →</em></a></li>
+      <li><a href="course/07-capstone/25-assemble-the-log-incident-watcher.html"><strong>Part 7: Capstone</strong><span>Assemble the Log Incident Watcher.</span><em>Chapter 25 →</em></a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap section">
+    <div class="cards">
+      <div class="card"><h3>Versions</h3><p>Use released versions only.</p>
+        <ol><li>Spring Boot 4.1.1</li><li>Spring AI 2.0.1</li><li>Spring AI Session 0.6.0</li><li>Temporal 1.35.0</li></ol></div>
+      <div class="card"><h3>Local services</h3><p>Everything runs on one machine.</p>
+        <ol><li>PostgreSQL 17 with VectorChord, BM25, and AGE</li><li>LM Studio with Gemma and BGE-M3</li><li>A reranker container for bge-reranker-v2-m3</li><li>A Temporal dev server</li></ol></div>
+    </div>
+  </div>
+</section>
