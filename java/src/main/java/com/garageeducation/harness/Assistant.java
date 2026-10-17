@@ -17,11 +17,13 @@ public class Assistant {
     private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
 
     private final ChatClient chat;
+    private final LogTools logTools;
 
     /**
-     * Asks the model one question.
+     * Asks the model one question and lets {@link ChatClient} run the tools.
      *
-     * <p>The system message limits the reply to two sentences.
+     * <p>{@link ChatClient} registers a {@code ToolCallingAdvisor} by default. The advisor runs each
+     * tool call, sends the result back to the model, and repeats until the reply has no tool calls.
      *
      * @param question the user's question, in plain text
      * @return the model's final text reply
@@ -31,6 +33,7 @@ public class Assistant {
         String answer = chat.prompt()
                 .system(SYSTEM)
                 .user(question)
+                .tools(logTools)
                 .call()
                 .content();
         log.debug("[auto] Final answer: {}", answer);

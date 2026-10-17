@@ -54,3 +54,22 @@ Content-Type: application/json
 # After Chapter 4 the same request runs the tool instead.
 # Log: [auto] ... then Chat Model Prompt Content with 2 messages. No "Executing tool call" line.
 GET {{app}}/askAutoToolCall?input=how many error events?
+
+
+### Chapter 4 · No service name: the model asks for one
+# Expect: "Please specify which service you would like to check ..."
+# Log: one model call, no "Executing tool call" line. The model asked instead of guessing.
+GET {{app}}/askAutoToolCall?input=how many error events?
+
+
+### Chapter 4 · Search service: the fake data returns 3
+# Expect: "There were 3 error events in the search service in the last 10 minutes."
+GET {{app}}/askAutoToolCall?input=how many error events in search service?
+
+
+### Chapter 4 · Checkout service: the fake data returns 412
+# Gemma sometimes asks for a time window instead. Add "in the last 15 minutes" to the question if it does.
+# Expect: "There were 412 error events in the checkout service in the last 15 minutes."
+# Log: [auto], then DefaultToolCallingManager "Executing tool call: countErrors": Spring AI ran the tool.
+#      [tool] countErrors(service=checkout, ...) returned 412, then a second model call.
+GET {{app}}/askAutoToolCall?input=how many error events in checkout service?
