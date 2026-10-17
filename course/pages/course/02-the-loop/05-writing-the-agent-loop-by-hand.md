@@ -40,7 +40,6 @@ In Chapter 4, `ChatClient` ran the tool for you. Your code saw only the final te
 .ra-title{fill:#0d2238;font:700 14px "Sora","Public Sans",sans-serif}
 .ra-edge{fill:#087f79;font:italic 12px "Public Sans",sans-serif}
 </style>
-
 <!-- Left: Chapter 4, advisor on -->
 <text class="ra-title" x="225" y="24" text-anchor="middle">Chapter 4: advisor on</text>
 <rect class="sk-box" x="115" y="48" width="220" height="44" rx="10"/>
@@ -67,7 +66,6 @@ In Chapter 4, `ChatClient` ran the tool for you. Your code saw only the final te
 <path class="ra-arrow" d="M275,176 L275,170" marker-end="url(#ra-head)"/>
 <path class="ra-arrow" d="M275,146 L275,96" marker-end="url(#ra-head)"/>
 <text class="sk-sub" x="225" y="402" text-anchor="middle">The dashed box repeats while the reply has tool calls.</text>
-
 <!-- Right: Chapter 5, advisor off -->
 <text class="ra-title" x="675" y="24" text-anchor="middle">Chapter 5: advisor off</text>
 <rect class="sk-box" x="565" y="48" width="220" height="44" rx="10"/>
@@ -375,7 +373,6 @@ The loop reads two message types and builds one more. Figure 5.3 shows how a too
 .mt-edge{fill:#526577;font:italic 12px "Public Sans",sans-serif}
 .mt-id-label{fill:#087f79;font:italic 12px "Public Sans",sans-serif}
 </style>
-
 <!-- Row 1: the reply -->
 <rect class="mt-reply" x="10" y="20" width="250" height="110" rx="10"/>
 <text class="sk-label" x="24" y="44">AssistantMessage</text>
@@ -396,7 +393,6 @@ The loop reads two message types and builds one more. Figure 5.3 shows how a too
 <text class="mt-code" x="624" y="84">type: function</text>
 <text class="mt-code" x="624" y="102">name: countErrors</text>
 <text class="mt-code" x="624" y="120">{"minutes":15,"service":"checkout"}</text>
-
 <!-- Row 2: the result -->
 <rect class="mt-tool" x="10" y="176" width="250" height="110" rx="10"/>
 <text class="sk-label" x="24" y="200">ToolResponseMessage</text>
@@ -415,7 +411,6 @@ The loop reads two message types and builds one more. Figure 5.3 shows how a too
 <text class="mt-hl" x="624" y="222">id: 3EFxibX9…</text>
 <text class="mt-code" x="624" y="240">name: countErrors</text>
 <text class="mt-code" x="624" y="258">responseData: 412</text>
-
 <!-- The id links them -->
 <path class="mt-id" d="M445,130 L445,176"/>
 <text class="mt-id-label" x="455" y="158">same id</text>

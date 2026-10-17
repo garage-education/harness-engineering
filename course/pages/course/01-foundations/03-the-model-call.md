@@ -187,7 +187,6 @@ public class TestController {
 <text class="mr-edge" x="222" y="16" text-anchor="middle">the prompt: sent to the model</text>
 <path class="mr-bracket" d="M454,34 L454,22 L651,22 L651,34"/>
 <text class="mr-edge" x="552" y="16" text-anchor="middle">the reply</text>
-
 <rect class="sk-box" x="10" y="40" width="205" height="200" rx="10"/>
 <text class="mr-role mr-sent" x="24" y="66">SYSTEM</text>
 <text class="mr-code" x="24" y="88">SystemMessage</text>
@@ -197,7 +196,6 @@ public class TestController {
 <text class="sk-sub" x="24" y="182">In this chapter:</text>
 <text class="mr-code" x="24" y="204">Answer in two</text>
 <text class="mr-code" x="24" y="220">sentences or fewer.</text>
-
 <rect class="sk-box" x="230" y="40" width="205" height="200" rx="10"/>
 <text class="mr-role mr-sent" x="244" y="66">USER</text>
 <text class="mr-code" x="244" y="88">UserMessage</text>
@@ -207,7 +205,6 @@ public class TestController {
 <text class="sk-sub" x="244" y="182">In this chapter:</text>
 <text class="mr-code" x="244" y="204">how many error</text>
 <text class="mr-code" x="244" y="220">events?</text>
-
 <rect class="mr-box-reply" x="450" y="40" width="205" height="200" rx="10"/>
 <text class="mr-role mr-reply" x="464" y="66">ASSISTANT</text>
 <text class="mr-code" x="464" y="88">AssistantMessage</text>
@@ -217,7 +214,6 @@ public class TestController {
 <text class="sk-sub" x="464" y="182">In this chapter:</text>
 <text class="mr-code" x="464" y="204">Please provide</text>
 <text class="mr-code" x="464" y="220">the logs…</text>
-
 <rect class="mr-box-later" x="670" y="40" width="220" height="200" rx="10"/>
 <text class="mr-role mr-later" x="684" y="66">TOOL</text>
 <text class="mr-code later" x="684" y="88">ToolResponseMessage</text>
@@ -255,7 +251,6 @@ public class TestController {
 .cv-step{fill:#0d2238}
 .cv-step-n{fill:#fff;font:700 12px "Public Sans",sans-serif;text-anchor:middle}
 </style>
-
 <!-- Prompt -->
 <text class="sk-sub" x="10" y="44">built by ChatClient</text>
 <rect class="sk-box" x="10" y="54" width="185" height="136" rx="10"/>
@@ -266,7 +261,6 @@ public class TestController {
 <text class="cv-code" x="30" y="138">UserMessage</text>
 <rect class="cv-row" x="22" y="150" width="161" height="26" rx="5"/>
 <text class="cv-code" x="30" y="168">options: model</text>
-
 <!-- OpenAiChatModel -->
 <rect class="cv-zone" x="230" y="30" width="440" height="170" rx="14"/>
 <text class="cv-zone-label" x="250" y="56">OpenAiChatModel</text>
@@ -276,7 +270,6 @@ public class TestController {
 <rect class="sk-box" x="470" y="82" width="180" height="60" rx="10"/>
 <text class="sk-label" x="560" y="108" text-anchor="middle">Convert to a</text>
 <text class="sk-label" x="560" y="126" text-anchor="middle">ChatResponse</text>
-
 <!-- LM Studio -->
 <rect class="cv-ext" x="230" y="226" width="440" height="104" rx="14"/>
 <text class="sk-label" x="330" y="250">LM Studio</text>
@@ -287,7 +280,6 @@ public class TestController {
 <text class="cv-model-label" x="450" y="296" text-anchor="middle">Gemma</text>
 <rect class="sk-box" x="530" y="268" width="120" height="46" rx="8"/>
 <text class="sk-label" x="590" y="296" text-anchor="middle">JSON reply</text>
-
 <!-- ChatResponse -->
 <rect class="sk-box" x="705" y="54" width="185" height="136" rx="10"/>
 <text class="sk-label" x="719" y="78">ChatResponse</text>
@@ -299,14 +291,12 @@ public class TestController {
 <text class="cv-code" x="725" y="168">model, tokens</text>
 <text class="sk-sub" x="705" y="214">.content() returns the</text>
 <text class="sk-sub" x="705" y="230">text of the reply.</text>
-
 <path class="cv-arrow" d="M195,112 L246,112" marker-end="url(#cv-head)"/>
 <path class="cv-arrow" d="M310,142 L310,264" marker-end="url(#cv-head)"/>
 <path class="cv-arrow" d="M370,291 L386,291" marker-end="url(#cv-head)"/>
 <path class="cv-arrow" d="M510,291 L526,291" marker-end="url(#cv-head)"/>
 <path class="cv-arrow" d="M590,268 L590,146" marker-end="url(#cv-head)"/>
 <path class="cv-arrow" d="M650,112 L701,112" marker-end="url(#cv-head)"/>
-
 <circle class="cv-step" cx="208" cy="163" r="10"/><text class="cv-step-n" x="208" y="167">1</text>
 <circle class="cv-step" cx="292" cy="212" r="10"/><text class="cv-step-n" x="292" y="216">2</text>
 <circle class="cv-step" cx="608" cy="212" r="10"/><text class="cv-step-n" x="608" y="216">3</text>

@@ -157,17 +157,14 @@ Figure 4.2 shows one request through the chain.
 .ac-step{fill:#0d2238}
 .ac-step-n{fill:#fff;font:700 12px "Public Sans",sans-serif;text-anchor:middle}
 </style>
-
 <rect class="ac-zone" x="170" y="40" width="545" height="300" rx="14"/>
 <text class="ac-zone-label" x="190" y="66">Advisor chain</text>
 <text class="sk-sub" x="300" y="66">sorted by getOrder(): lower runs first on the way in</text>
-
 <!-- Your code -->
 <rect class="sk-box" x="10" y="130" width="130" height="150" rx="10"/>
 <text class="sk-label" x="24" y="156">Assistant</text>
 <text class="ac-code" x="24" y="178">.call()</text>
 <text class="ac-code" x="24" y="266">.content()</text>
-
 <!-- Advisor 1 -->
 <rect class="sk-box" x="190" y="90" width="145" height="230" rx="10"/>
 <text class="sk-label" x="204" y="114">ToolCalling</text>
@@ -178,7 +175,6 @@ Figure 4.2 shows one request through the chain.
 <text class="ac-out-text" x="204" y="240">after: reads or</text>
 <text class="ac-out-text" x="204" y="254">changes the reply</text>
 <text class="sk-sub" x="204" y="306">added by ChatClient</text>
-
 <!-- Advisor 2: optional -->
 <rect class="sk-box ac-optional" x="370" y="90" width="145" height="230" rx="10"/>
 <text class="sk-label" x="384" y="114">Your advisors</text>
@@ -187,7 +183,6 @@ Figure 4.2 shows one request through the chain.
 <text class="ac-in-text" x="384" y="196">before</text>
 <text class="ac-out-text" x="384" y="240">after</text>
 <text class="sk-sub" x="384" y="306">added by you</text>
-
 <!-- Advisor 3: framework -->
 <rect class="sk-box" x="550" y="90" width="145" height="230" rx="10"/>
 <text class="sk-label" x="564" y="114">ChatModel</text>
@@ -196,24 +191,20 @@ Figure 4.2 shows one request through the chain.
 <text class="ac-in-text" x="564" y="196">sends the prompt</text>
 <text class="ac-out-text" x="564" y="240">returns the reply</text>
 <text class="sk-sub" x="564" y="306">always last</text>
-
 <!-- The model -->
 <rect class="ac-model" x="750" y="150" width="130" height="130" rx="10"/>
 <text class="ac-model-label" x="815" y="210" text-anchor="middle">Gemma</text>
 <text class="sk-sub" x="815" y="230" text-anchor="middle">the model</text>
-
 <!-- Request: left to right -->
 <path class="ac-in" d="M140,172 L186,172" marker-end="url(#ac-head-in)"/>
 <path class="ac-in" d="M335,172 L366,172" marker-end="url(#ac-head-in)"/>
 <path class="ac-in" d="M515,172 L546,172" marker-end="url(#ac-head-in)"/>
 <path class="ac-in" d="M695,172 L746,172" marker-end="url(#ac-head-in)"/>
-
 <!-- Reply: right to left -->
 <path class="ac-out" d="M750,262 L699,262" marker-end="url(#ac-head-out)"/>
 <path class="ac-out" d="M550,262 L519,262" marker-end="url(#ac-head-out)"/>
 <path class="ac-out" d="M370,262 L339,262" marker-end="url(#ac-head-out)"/>
 <path class="ac-out" d="M190,262 L144,262" marker-end="url(#ac-head-out)"/>
-
 <!-- Step numbers, matching the list under the figure -->
 <circle class="ac-step" cx="163" cy="150" r="10"/><text class="ac-step-n" x="163" y="154">1</text>
 <circle class="ac-step" cx="352" cy="150" r="10"/><text class="ac-step-n" x="352" y="154">2</text>
@@ -300,31 +291,25 @@ One `.call()` can reach the model more than once. `ToolCallingAdvisor` runs a lo
 .tl-step{fill:#0d2238}
 .tl-step-n{fill:#fff;font:700 12px "Public Sans",sans-serif;text-anchor:middle}
 </style>
-
 <!-- The ToolCallingAdvisor owns everything inside this zone -->
 <rect class="tl-zone" x="200" y="62" width="690" height="338" rx="14"/>
 <text class="tl-zone-label" x="220" y="88">ToolCallingAdvisor</text>
 <text class="sk-sub" x="370" y="88">ChatClient adds it when a request has tools</text>
-
 <!-- Your code -->
 <rect class="sk-box" x="10" y="62" width="165" height="74" rx="10"/>
 <text class="sk-label" x="24" y="88">LogTools</text>
 <text class="tl-code" x="24" y="110">@Tool countErrors</text>
 <text class="sk-sub" x="24" y="127">the tools you wrote</text>
-
 <rect class="sk-box" x="10" y="262" width="165" height="62" rx="10"/>
 <text class="sk-label" x="24" y="287">Assistant</text>
 <text class="tl-code" x="24" y="308">askAutoToolCall()</text>
-
 <path class="tl-def" d="M92,136 L92,256" marker-end="url(#tl-head-def)"/>
 <text class="tl-edge" x="100" y="200">.tools(logTools)</text>
-
 <!-- Main path: request in -->
 <path class="tl-main" d="M175,293 L238,293" marker-end="url(#tl-head-main)"/>
 <circle class="sk-box" cx="256" cy="293" r="16"/>
 <text class="sk-label" x="256" y="298" text-anchor="middle">+</text>
 <path class="tl-main" d="M272,293 L292,293" marker-end="url(#tl-head-main)"/>
-
 <!-- The messages sent on each model call -->
 <rect class="sk-box" x="296" y="200" width="196" height="186" rx="10"/>
 <text class="sk-label" x="310" y="222">Messages sent</text>
@@ -338,48 +323,36 @@ One `.call()` can reach the model more than once. `ToolCallingAdvisor` runs a lo
 <text class="tl-code loop" x="316" y="344">AI: tool call</text>
 <rect class="tl-row new" x="308" y="354" width="172" height="22" rx="5"/>
 <text class="tl-code loop" x="316" y="370">Tool: 412</text>
-
 <path class="tl-main" d="M492,293 L526,293" marker-end="url(#tl-head-main)"/>
-
 <!-- The model -->
 <rect class="tl-model" x="530" y="266" width="112" height="54" rx="10"/>
 <text class="tl-model-label" x="586" y="292" text-anchor="middle">Gemma</text>
 <text class="sk-sub" x="586" y="310" text-anchor="middle">decides</text>
-
 <path class="tl-main" d="M642,293 L700,293" marker-end="url(#tl-head-main)"/>
-
 <!-- Decision -->
 <path class="sk-box" d="M760,253 L820,293 L760,333 L700,293 Z"/>
 <text class="sk-label" x="760" y="290" text-anchor="middle">Tool</text>
 <text class="sk-label" x="760" y="306" text-anchor="middle">call?</text>
-
 <!-- Loop path: yes -->
 <path class="tl-loop" d="M760,253 L760,172" marker-end="url(#tl-head-loop)"/>
 <text class="tl-edge loop" x="768" y="222">yes</text>
-
 <rect class="sk-box tl-loopbox" x="640" y="108" width="190" height="62" rx="10"/>
 <text class="sk-label" x="654" y="133">ToolCallingManager</text>
 <text class="sk-sub" x="654" y="153">finds and runs the tool</text>
-
 <path class="tl-loop" d="M640,139 L498,139" marker-end="url(#tl-head-loop)"/>
 <rect class="tl-row new" x="526" y="128" width="88" height="22" rx="5"/>
 <text class="tl-code loop" x="536" y="144">Tool: 412</text>
-
 <rect class="sk-box tl-loopbox" x="224" y="108" width="270" height="62" rx="10"/>
 <text class="sk-label" x="238" y="133">Append to the history</text>
 <text class="sk-sub" x="238" y="153">the tool call and its result</text>
-
 <path class="tl-loop" d="M256,170 L256,271" marker-end="url(#tl-head-loop)"/>
-
 <!-- ToolCallingManager calls your method -->
 <path class="tl-loop" d="M735,108 L735,32 L130,32 L130,58" marker-end="url(#tl-head-loop)"/>
 <text class="tl-edge loop" x="420" y="25" text-anchor="middle">find and call countErrors(checkout, 15)</text>
-
 <!-- Main path: final answer out -->
 <path class="tl-main" d="M820,293 L872,293 L872,432 L60,432 L60,330" marker-end="url(#tl-head-main)"/>
 <text class="tl-edge main" x="846" y="285" text-anchor="middle">no</text>
 <text class="tl-edge main" x="466" y="454" text-anchor="middle">final answer: .content() returns the text</text>
-
 <!-- Step numbers, matching the list under the figure -->
 <circle class="tl-step" cx="206" cy="270" r="10"/><text class="tl-step-n" x="206" y="274">1</text>
 <circle class="tl-step" cx="670" cy="270" r="10"/><text class="tl-step-n" x="670" y="274">2</text>

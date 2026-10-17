@@ -60,12 +60,10 @@ A model is frozen after training. It cannot read today's logs or call an API. To
 .tc-step{fill:#0d2238}
 .tc-step-n{fill:#fff;font:700 12px "Public Sans",sans-serif;text-anchor:middle}
 </style>
-
 <!-- The tool -->
 <rect class="tc-tool" x="320" y="10" width="260" height="62" rx="10"/>
 <text class="sk-label" x="450" y="36" text-anchor="middle">countErrors</text>
 <text class="sk-sub" x="450" y="56" text-anchor="middle">a Java method in your app</text>
-
 <!-- The harness -->
 <rect class="tc-zone" x="200" y="118" width="500" height="172" rx="14"/>
 <text class="tc-zone-label" x="690" y="146" text-anchor="end">Harness</text>
@@ -73,12 +71,10 @@ A model is frozen after training. It cannot read today's logs or call an API. To
 <rect class="sk-box" x="340" y="176" width="220" height="68" rx="10"/>
 <text class="sk-label" x="450" y="206" text-anchor="middle">Dispatch tool calls</text>
 <text class="sk-sub" x="450" y="226" text-anchor="middle">find the tool by name, run it</text>
-
 <!-- The model -->
 <rect class="tc-model" x="200" y="330" width="500" height="64" rx="10"/>
 <text class="tc-model-label" x="450" y="358" text-anchor="middle">Gemma</text>
 <text class="sk-sub" x="450" y="378" text-anchor="middle">reads text, writes text, runs no code</text>
-
 <!-- The request -->
 <rect class="sk-box" x="10" y="150" width="165" height="110" rx="10"/>
 <text class="sk-label" x="24" y="174">Chat request</text>
@@ -90,13 +86,11 @@ A model is frozen after training. It cannot read today's logs or call an API. To
 <text class="sk-sub" x="52" y="288">name</text>
 <text class="sk-sub" x="52" y="307">description</text>
 <text class="sk-sub" x="52" y="326">input schema</text>
-
 <!-- The response -->
 <rect class="sk-box" x="730" y="166" width="160" height="78" rx="10"/>
 <text class="sk-label" x="744" y="192">Chat response</text>
 <text class="sk-sub" x="744" y="214">checkout has 412</text>
 <text class="sk-sub" x="744" y="230">error events</text>
-
 <!-- 1: request to model -->
 <path class="tc-arrow" d="M175,205 L260,205 L260,326" marker-end="url(#tc-head)"/>
 <!-- inside the model: reads the request, decides -->
@@ -112,14 +106,12 @@ A model is frozen after training. It cannot read today's logs or call an API. To
 <path class="tc-dot" d="M510,334 L510,344 L640,344 L640,334"/>
 <!-- 6: final answer -->
 <path class="tc-arrow" d="M640,330 L640,205 L726,205" marker-end="url(#tc-head)"/>
-
 <text class="tc-edge" x="268" y="300">question + tool</text>
 <text class="tc-edge" x="398" y="300">tool call</text>
 <text class="tc-edge" x="398" y="110">run</text>
 <text class="tc-edge" x="518" y="110">412</text>
 <text class="tc-edge" x="518" y="300">tool result</text>
 <text class="tc-edge" x="648" y="300">answer</text>
-
 <circle class="tc-step" cx="215" cy="186" r="10"/><text class="tc-step-n" x="215" y="190">1</text>
 <circle class="tc-step" cx="372" cy="270" r="10"/><text class="tc-step-n" x="372" y="274">2</text>
 <circle class="tc-step" cx="372" cy="98" r="10"/><text class="tc-step-n" x="372" y="102">3</text>

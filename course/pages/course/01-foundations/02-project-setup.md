@@ -127,24 +127,20 @@ LM Studio exposes an OpenAI-compatible API (application programming interface). 
 .cm-edge{fill:#526577;font:italic 12px "Public Sans",sans-serif}
 .cm-muted{fill:#526577;font:650 13px "Public Sans",sans-serif}
 </style>
-
 <!-- ChatClient holds a ChatModel -->
 <rect class="sk-box" x="10" y="36" width="180" height="66" rx="10"/>
 <text class="sk-label" x="24" y="62">ChatClient</text>
 <text class="sk-sub" x="24" y="84">the fluent API you call</text>
 <path class="cm-line" d="M190,69 L296,69" marker-end="url(#cm-has)"/>
 <text class="cm-edge" x="243" y="61" text-anchor="middle">has a</text>
-
 <rect class="cm-iface" x="300" y="30" width="300" height="78" rx="10"/>
 <text class="sk-sub" x="450" y="52" text-anchor="middle">interface</text>
 <text class="sk-label" x="450" y="72" text-anchor="middle">ChatModel</text>
 <text class="cm-code" x="450" y="94" text-anchor="middle">call(Prompt): ChatResponse</text>
-
 <!-- One implementation per provider -->
 <path class="cm-line" d="M135,170 L135,142 L765,142 L765,170 M345,142 L345,170 M555,142 L555,170"/>
 <path class="cm-line" d="M450,142 L450,112" marker-end="url(#cm-isa)"/>
 <text class="cm-edge" x="460" y="132">is a</text>
-
 <rect class="cm-used" x="40" y="170" width="190" height="56" rx="10"/>
 <text class="sk-label" x="135" y="194" text-anchor="middle">OpenAiChatModel</text>
 <text class="sk-sub" x="135" y="212" text-anchor="middle">from the OpenAI starter</text>
@@ -154,7 +150,6 @@ LM Studio exposes an OpenAI-compatible API (application programming interface). 
 <text class="cm-muted" x="555" y="203" text-anchor="middle">OllamaChatModel</text>
 <rect class="cm-more" x="670" y="170" width="190" height="56" rx="10"/>
 <text class="cm-muted" x="765" y="203" text-anchor="middle">20 more providers</text>
-
 <!-- OpenAiChatModel reaches any OpenAI-compatible server -->
 <path class="cm-call" d="M135,226 L135,284" marker-end="url(#cm-call)"/>
 <text class="cm-edge" x="145" y="252">HTTP, OpenAI format</text>
