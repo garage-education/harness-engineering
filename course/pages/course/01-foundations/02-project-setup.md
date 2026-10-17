@@ -36,7 +36,7 @@ This chapter builds a Spring Boot 4.1.1 project that talks to LM Studio.
 
 ## Step 1: The build file
 
-The project uses Gradle with the Kotlin DSL. Figure 2.1 shows its parts.
+The project lives in the repository's `java/` folder. It uses Gradle with the Kotlin DSL. Figure 2.1 shows its parts.
 
 ```kotlin
 plugins {
@@ -176,7 +176,7 @@ LM Studio exposes an OpenAI-compatible API (application programming interface). 
 - **Any server that speaks that format works.** `base-url` points the same class at LM Studio.
 - **To change provider, change the starter.** The code in later chapters stays the same.
 
-Put the settings in `src/main/resources/application.yaml`.
+Put the settings in `java/src/main/resources/application.yaml`.
 
 ```yaml
 spring:
@@ -267,9 +267,10 @@ public class HarnessApplication {
 }
 ```
 
-Start the app:
+Start the app from the `java/` folder:
 
 ```bash
+cd java
 ./gradlew bootRun
 ```
 

@@ -24,7 +24,7 @@ Clone the repository and start the app:
 
 ```bash
 git clone git@github.com:garage-education/harness-engineering.git
-cd harness-engineering
+cd harness-engineering/java
 ./gradlew bootRun
 ```
 
@@ -33,15 +33,15 @@ On Windows, run `gradlew.bat bootRun`. The app listens on port 8080.
 ### Each chapter, in four steps
 
 1. **Read** the chapter. It shows the code for that chapter only.
-2. **Write** the code, or compare it with `src/main/java/com/garageeducation/harness/`.
+2. **Write** the code, or compare it with `java/src/main/java/com/garageeducation/harness/`.
 3. **Send** the chapter's requests in `requests/harness.http`. Each request names its chapter.
 4. **Read** the console log. Each chapter shows the log lines to expect. Chapter 2, Table 2.1 explains every log tag.
 
 Run Chapter 2's two requests first. Gemma must return a tool call before you start Chapter 3.
 
-### What `src/` holds
+### What `java/` holds
 
-`src/` holds the code after Chapter 6. It is ahead of Chapters 3 to 5. For example, `Assistant.java` already has `askHaltToolCall` from Chapter 5. Each chapter shows the version of each file for that point in the course.
+`java/` holds the code after Chapter 6. It is ahead of Chapters 3 to 5. For example, `Assistant.java` already has `askHaltToolCall` from Chapter 5. Each chapter shows the version of each file for that point in the course.
 
 Model replies differ between runs. Compare the shape of each reply and log, not the exact words.
 
@@ -70,7 +70,7 @@ Open http://localhost:8000. Edit any file under `course/`, then refresh the brow
 | `course/index.html` | The landing page |
 | `course/site.json` | The site title, colors, footer, and print settings |
 | `course/assets/` | The site CSS and the diagram script |
-| `src/` | The Spring Boot code the chapters walk through |
+| `java/` | The Spring Boot code the chapters walk through. Open this folder in your IDE. |
 | `requests/harness.http` | Every test request in the course, in chapter order |
 
 ### Publish

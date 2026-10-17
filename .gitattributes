@@ -2,6 +2,6 @@
 # This overrides each machine's core.autocrlf setting.
 * text=auto eol=lf
 
-/gradlew text eol=lf
+/java/gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
