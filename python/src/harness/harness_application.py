@@ -3,19 +3,27 @@
 import uvicorn
 from fastapi import FastAPI
 
+from harness.ai_config import AiConfig
 from harness.application_properties import ApplicationProperties
+from harness.assistant import Assistant
+from harness.test_controller import TestController
 
 
 def create_app() -> FastAPI:
     """Creates every object and wires them together.
 
     It plays the part of Spring's application context: one place builds each object once
-    and passes it to the constructors that need it. Chapter 3 adds the first objects.
+    and passes it to the constructors that need it.
 
     Returns:
-        the web app
+        the web app, with the ``TestController`` routes
     """
-    return FastAPI(title="harness")
+    properties = ApplicationProperties.load()
+    chat = AiConfig(properties).chat_model()
+    controller = TestController(Assistant(chat))
+    app = FastAPI(title="harness")
+    app.include_router(controller.router)
+    return app
 
 
 def main() -> None:

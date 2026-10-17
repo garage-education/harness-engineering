@@ -47,3 +47,10 @@ Content-Type: application/json
     }
   ]
 }
+
+
+### Chapter 3 · One model call, no tools
+# Expect the model to ask for logs: it has no data yet.
+# After Chapter 4 the same request runs the tool instead.
+# Log: [auto] ... then Chat Model Prompt Content with 2 messages. No "Executing tool call" line.
+GET {{app}}/askAutoToolCall?input=how many error events?
