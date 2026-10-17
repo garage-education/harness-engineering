@@ -52,6 +52,10 @@ description: Every term the course uses, defined once.
 - **RAG (retrieval-augmented generation).** The harness fetches relevant documents before the model answers.
 - **HITL (human-in-the-loop).** A run that pauses until a person approves an action.
 - **Graph.** A flow of nodes and edges. A knowledge graph stores relationships between things.
+- **Node.** One step of work in a graph. It reads the run's state and changes it.
+- **Edge.** A move from one node to the next. A conditional edge reads the state to pick the next node.
+- **State.** The data one run carries from node to node, such as the messages and the token count.
+- **Scripted model.** A fake model for tests. It returns fixed replies in order, so a test needs no model server.
 - **Durable execution.** A run that survives crashes and restarts because its state is stored.
 - **Workflow (Temporal).** The durable definition of one run.
 - **Activity (Temporal).** A unit of work with side effects, such as a model call. Temporal retries it.

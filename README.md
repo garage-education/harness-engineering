@@ -2,7 +2,7 @@
 
 Oct 10, 2026 · @Ahmed Hassanien
 
-This course teaches engineers to build an agent harness with Spring AI in Java. Chapters 2 to 7 also show every step in Python with LangChain. The running example is the Log Incident Watcher. It has 7 parts and 25 chapters. Each chapter adds one idea. All examples use fake data and run offline.
+This course teaches engineers to build an agent harness with Spring AI in Java. Chapters 2 to 8 also show every step in Python with LangChain. The running example is the Log Incident Watcher. It has 7 parts and 25 chapters. Each chapter adds one idea. All examples use fake data and run offline.
 
 **Versions:** Spring Boot 4.1.1, Spring AI 2.0.1, Spring AI Session 0.6.0, Temporal 1.35.0.
 
@@ -62,6 +62,15 @@ git checkout main                  # back to the latest chapter
 Chapter 1 has no code. Its commit adds only the chapter page. The first commit, before Chapter 1, sets up the course site.
 
 Model replies differ between runs. Compare the shape of each reply and log, not the exact words.
+
+### Run the tests
+
+From Chapter 8, each edge of the agent loop has a unit test. The tests use a scripted model, so LM Studio does not need to run.
+
+```bash
+cd java && ./gradlew test       # Java
+cd python && uv run pytest -v   # Python
+```
 
 ## Read the course locally
 

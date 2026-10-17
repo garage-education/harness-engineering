@@ -7,6 +7,7 @@ dependencies = [
     "fastapi==0.142.2",
     "langchain==1.4.3",
     "langchain-openai==1.6.7",
+    "langgraph==1.2.12",
     "pyyaml==6.0.3",
     "uvicorn==0.54.0",
 ]
@@ -14,6 +15,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mypy==2.4.0",
+    "pytest==9.1.1",
     "ruff==0.16.10",
     "types-pyyaml==6.0.12.20260906",
 ]
@@ -30,6 +32,9 @@ line-length = 140
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.mypy]
 strict = true

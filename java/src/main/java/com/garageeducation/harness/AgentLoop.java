@@ -3,19 +3,15 @@ package com.garageeducation.harness;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.function.Function;
 
 import org.springframework.ai.chat.client.AdvisorParams;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.AssistantMessage.ToolCall;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
@@ -27,10 +23,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * The agent loop, written by hand.
+ * The agent loop, as a graph of four named nodes.
  *
- * <p>Each step sends the full message list to the model. A reply without tool calls ends the run.
- * Otherwise, the loop runs each tool, adds the results to the messages, and repeats.
+ * <p>{@code checkQuestion} runs once. Then {@code callModel}, {@code checkLimits}, and {@code runTools}
+ * repeat until a node sets a stop reason. Each node does one job and changes the {@link RunState}.
+ * Each edge reads the state and picks the next node.
  *
  * <p>{@link ChatClient} runs tools by itself through its {@code ToolCallingAdvisor}.
  * This class turns that advisor off, so the model's tool calls come back to this code.
@@ -54,89 +51,150 @@ public class AgentLoop {
     /** How often the model can request the same tool call before the run stops. */
     static final int MAX_REPEATS = 3;
 
+    // The node names. Each one appears in the [graph] log lines.
+    static final String CHECK_QUESTION = "checkQuestion";
+    static final String CALL_MODEL = "callModel";
+    static final String CHECK_LIMITS = "checkLimits";
+    static final String RUN_TOOLS = "runTools";
+
     private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
 
     private final ChatClient chat;
     private final LogTools logTools;
     private final Guardrails guardrails;
 
+    private final Graph<RunState> graph = new Graph<RunState>()
+            .addNode(CHECK_QUESTION, this::checkQuestion)
+            .addNode(CALL_MODEL, this::callModel)
+            .addNode(CHECK_LIMITS, this::checkLimits)
+            .addNode(RUN_TOOLS, this::runTools)
+            .addEdge(Graph.START, CHECK_QUESTION)
+            .addConditionalEdges(CHECK_QUESTION, stopOr(CALL_MODEL), List.of(CALL_MODEL, Graph.END))
+            .addConditionalEdges(CALL_MODEL, stopOr(CHECK_LIMITS), List.of(CHECK_LIMITS, Graph.END))
+            .addConditionalEdges(CHECK_LIMITS, stopOr(RUN_TOOLS), List.of(RUN_TOOLS, Graph.END))
+            .addEdge(RUN_TOOLS, CALL_MODEL);
+
     /**
-     * Runs the loop for one question.
+     * Runs the graph for one question.
      *
      * @param question the user's question, in plain text
      * @return the answer, the stop reason, the step count, and the tokens used
      */
     public RunResult run(String question) {
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(SYSTEM));
-        messages.add(new UserMessage(question));
+        log.debug("[loop] Start. The graph runs the steps. Question: {}", question);
+        RunState state = graph.run(new RunState(SYSTEM, question, Instant.now().plus(TIMEOUT)));
+        return new RunResult(state.answer, state.reason, state.step, state.tokens);
+    }
 
-        String blocked = guardrails.checkQuestion(question);
+    /**
+     * Draws the graph as Mermaid text.
+     *
+     * @return the graph in Mermaid flowchart syntax
+     */
+    public String mermaid() {
+        return graph.toMermaid();
+    }
+
+    /**
+     * Builds an edge that stops the run once a node has set a stop reason.
+     *
+     * @param next the node to run while no stop reason is set
+     * @return the route: {@link Graph#END} when {@link RunState#reason} is set, otherwise {@code next}
+     */
+    static Function<RunState, String> stopOr(String next) {
+        return state -> state.reason != null ? Graph.END : next;
+    }
+
+    /**
+     * Node: checks the question against {@link Guardrails}. A blocked question stops the run.
+     *
+     * @param state the run state
+     */
+    void checkQuestion(RunState state) {
+        String blocked = guardrails.checkQuestion(state.question);
         if (blocked != null) {
             log.debug("[guard] {} Stop: BLOCKED, no model call", blocked);
-            return new RunResult(blocked, StopReason.BLOCKED, 0, 0);
+            state.answer = blocked;
+            state.reason = StopReason.BLOCKED;
         }
+    }
 
-        Map<String, Integer> seenCalls = new HashMap<>();
-        Instant deadline = Instant.now().plus(TIMEOUT);
-        int tokens = 0;
-        log.debug("[loop] Start. Your code runs the tools. Question: {}", question);
+    /**
+     * Node: sends the messages to the model and adds its reply. A reply without tool calls is the answer.
+     *
+     * @param state the run state
+     */
+    void callModel(RunState state) {
+        state.step++;
+        log.debug("[loop] Step {}/{}: sending {} messages to the model", state.step, MAX_STEPS, state.messages.size());
+        ChatResponse response = chat.prompt()
+                .messages(state.messages)
+                .tools(logTools)
+                .advisors(AdvisorParams.toolCallingAdvisorAutoRegister(false))
+                .call()
+                .chatResponse();
+        AssistantMessage reply = response.getResult().getOutput();
+        state.messages.add(reply);
+        state.tokens += response.getMetadata().getUsage().getTotalTokens();
 
-        for (int step = 1; step <= MAX_STEPS; step++) {
-            // 1. Send the messages to the model.
-            log.debug("[loop] Step {}/{}: sending {} messages to the model", step, MAX_STEPS, messages.size());
-            ChatResponse response = chat.prompt()
-                    .messages(messages)
-                    .tools(logTools)
-                    .advisors(AdvisorParams.toolCallingAdvisorAutoRegister(false))
-                    .call()
-                    .chatResponse();
-            AssistantMessage reply = response.getResult().getOutput();
-            messages.add(reply);
-            tokens += response.getMetadata().getUsage().getTotalTokens();
-
-            // 2. A reply without tool calls is the answer.
-            if (!reply.hasToolCalls()) {
-                log.debug("[loop] Step {}: no tool calls. Stop: FINAL_ANSWER, {} tokens. Answer: {}", step, tokens, reply.getText());
-                return new RunResult(reply.getText(), StopReason.FINAL_ANSWER, step, tokens);
-            }
-            log.debug("[loop] Step {}: model requested {} tool call(s), {} tokens so far", step, reply.getToolCalls().size(), tokens);
-
-            // Stop rules, checked before any tool runs.
-            if (tokens > MAX_TOKENS) {
-                log.debug("[loop] Step {}: {} tokens is over MAX_TOKENS {}. Stop: TOKEN_BUDGET", step, tokens, MAX_TOKENS);
-                return new RunResult(null, StopReason.TOKEN_BUDGET, step, tokens);
-            }
-            if (Instant.now().isAfter(deadline)) {
-                log.debug("[loop] Step {}: past the {} deadline. Stop: TIMEOUT", step, TIMEOUT);
-                return new RunResult(null, StopReason.TIMEOUT, step, tokens);
-            }
-            for (ToolCall call : reply.getToolCalls()) {
-                String key = call.name() + call.arguments();
-                int count = seenCalls.getOrDefault(key, 0) + 1;
-                seenCalls.put(key, count);
-                if (count >= MAX_REPEATS) {
-                    log.debug("[loop] Step {}: {} {} requested {} times. Stop: LOOP_DETECTED", step, call.name(), call.arguments(), count);
-                    return new RunResult(null, StopReason.LOOP_DETECTED, step, tokens);
-                }
-            }
-
-            // 3. Check and run each tool. 4. Add the results to the messages.
-            List<ToolResponse> results = new ArrayList<>();
-            for (ToolCall call : reply.getToolCalls()) {
-                String rejected = guardrails.checkToolCall(call);
-                if (rejected != null) {
-                    log.debug("[guard] Step {}: {} {} not run. {}", step, call.name(), call.arguments(), rejected);
-                    results.add(new ToolResponse(call.id(), call.name(), rejected));
-                    continue;
-                }
-                log.debug("[loop] Step {}: your code runs {} {}", step, call.name(), call.arguments());
-                results.add(new ToolResponse(call.id(), call.name(), runTool(call)));
-            }
-            messages.add(ToolResponseMessage.builder().responses(results).build());
+        if (!reply.hasToolCalls()) {
+            log.debug("[loop] Step {}: no tool calls. Stop: FINAL_ANSWER, {} tokens. Answer: {}", state.step, state.tokens, reply.getText());
+            state.answer = reply.getText();
+            state.reason = StopReason.FINAL_ANSWER;
+            return;
         }
-        log.debug("[loop] Used all {} steps without a final answer. Stop: STEP_LIMIT", MAX_STEPS);
-        return new RunResult(null, StopReason.STEP_LIMIT, MAX_STEPS, tokens);
+        log.debug("[loop] Step {}: model requested {} tool call(s), {} tokens so far", state.step, reply.getToolCalls().size(), state.tokens);
+    }
+
+    /**
+     * Node: checks the stop rules before any tool runs. A broken rule stops the run.
+     *
+     * @param state the run state
+     */
+    void checkLimits(RunState state) {
+        int step = state.step;
+        if (state.tokens > MAX_TOKENS) {
+            log.debug("[loop] Step {}: {} tokens is over MAX_TOKENS {}. Stop: TOKEN_BUDGET", step, state.tokens, MAX_TOKENS);
+            state.reason = StopReason.TOKEN_BUDGET;
+            return;
+        }
+        if (Instant.now().isAfter(state.deadline)) {
+            log.debug("[loop] Step {}: past the {} deadline. Stop: TIMEOUT", step, TIMEOUT);
+            state.reason = StopReason.TIMEOUT;
+            return;
+        }
+        for (ToolCall call : state.reply().getToolCalls()) {
+            int count = state.seenCalls.merge(call.name() + call.arguments(), 1, Integer::sum);
+            if (count >= MAX_REPEATS) {
+                log.debug("[loop] Step {}: {} {} requested {} times. Stop: LOOP_DETECTED", step, call.name(), call.arguments(), count);
+                state.reason = StopReason.LOOP_DETECTED;
+                return;
+            }
+        }
+        if (step >= MAX_STEPS) {
+            log.debug("[loop] Step {}: used all {} steps without a final answer. Stop: STEP_LIMIT", step, MAX_STEPS);
+            state.reason = StopReason.STEP_LIMIT;
+        }
+    }
+
+    /**
+     * Node: checks and runs each tool call, then adds the results to the messages.
+     *
+     * @param state the run state
+     */
+    void runTools(RunState state) {
+        List<ToolResponse> results = new ArrayList<>();
+        for (ToolCall call : state.reply().getToolCalls()) {
+            String rejected = guardrails.checkToolCall(call);
+            if (rejected != null) {
+                log.debug("[guard] Step {}: {} {} not run. {}", state.step, call.name(), call.arguments(), rejected);
+                results.add(new ToolResponse(call.id(), call.name(), rejected));
+                continue;
+            }
+            log.debug("[loop] Step {}: your code runs {} {}", state.step, call.name(), call.arguments());
+            results.add(new ToolResponse(call.id(), call.name(), runTool(call)));
+        }
+        state.messages.add(ToolResponseMessage.builder().responses(results).build());
     }
 
     /**

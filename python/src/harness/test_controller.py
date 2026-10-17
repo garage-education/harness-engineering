@@ -25,6 +25,7 @@ class TestController:
         self.router.add_api_route("/askAutoToolCall", self.ask_auto_tool_call, response_class=PlainTextResponse)
         self.router.add_api_route("/askHaltToolCall", self.ask_halt_tool_call)
         self.router.add_api_route("/run", self.run)
+        self.router.add_api_route("/graph", self.graph, response_class=PlainTextResponse)
 
     def ask_auto_tool_call(self, input: str) -> str:
         """Sends the question to the model. The agent runs the tools.
@@ -58,3 +59,11 @@ class TestController:
             the run result as JSON: answer, reason, steps, and tokens
         """
         return self.agent_loop.run(input)
+
+    def graph(self) -> str:
+        """Draws the agent loop's graph.
+
+        Returns:
+            the graph as Mermaid text, one edge per line
+        """
+        return self.agent_loop.mermaid()

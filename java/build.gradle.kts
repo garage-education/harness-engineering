@@ -43,4 +43,8 @@ dependencyManagement {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	// Print one line per test, so each graph edge shows up by name.
+	testLogging {
+		events("passed", "skipped", "failed")
+	}
 }

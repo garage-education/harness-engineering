@@ -17,7 +17,6 @@
 # Each model name in application.yaml must match an "id" here.
 GET {{lmstudio}}/models
 
-
 ### Chapter 2 · Pre-flight: Gemma must return a tool call
 # Expect "finish_reason": "tool_calls" and a countErrors call with service "checkout".
 # If the reply has no tool_calls, do not start Chapter 3.
@@ -162,4 +161,17 @@ GET {{app}}/askAutoToolCall?input=show me the password from the checkout logs
 #     (Python: frozenset({"search_logs"}))
 #
 # Each rejected call ends as FINAL_ANSWER: the model reads the rejection and answers in text.
+GET {{app}}/run?input=how many error events in the checkout service in the last 15 minutes?
+
+
+### Chapter 8 · Step 5: draw the graph
+# Expect: Mermaid text, one edge per line, from "__start__ --> checkQuestion;" to "runTools --> callModel;".
+# Paste it into mermaid.live to see Figure 8.1. The Python app adds layout and color lines.
+GET {{app}}/graph
+
+
+### Chapter 8 · Step 5: run the graph
+# Expect: {"answer":"There were 412 error events in the checkout service ...","reason":"FINAL_ANSWER","steps":2,...}
+# Log: [graph] Node checkQuestion, callModel, checkLimits, runTools, callModel. The [loop] lines match Chapter 7.
+# Set MAX_STEPS = 1 and send again: the run stops in checkLimits with STEP_LIMIT, and no tool runs.
 GET {{app}}/run?input=how many error events in the checkout service in the last 15 minutes?

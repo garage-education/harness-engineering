@@ -306,6 +306,7 @@ logging:
 | `[loop]` | `AgentLoop.run` | One step or one stop decision of your loop |
 | `[tool]` | `LogTools.countErrors` | The tool ran, with its arguments and result |
 | `[guard]` | `AgentLoop.run` | A guardrail blocked the question or rejected a tool call, from Chapter 7 |
+| `[graph]` | `Graph.run` | One node of the agent loop's graph starts, from Chapter 8 |
 
 :::
 ::: tab Python
@@ -494,6 +495,7 @@ Table 2.1 lists what each log line means.
 | `[loop]` | `AgentLoop.run` | One step or one stop decision of your loop |
 | `[tool]` | `LogTools.count_errors` | The tool ran, with its arguments and result |
 | `[guard]` | `AgentLoop.run` | A guardrail blocked the question or rejected a tool call, from Chapter 7 |
+| `[graph]` | `AgentLoop.run` | One node of the agent loop's graph starts, from Chapter 8 |
 | `"GET /… HTTP/1.1" 200` | `uvicorn.access` | One HTTP request ends, with its status code |
 :::
 :::

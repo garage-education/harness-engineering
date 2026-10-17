@@ -53,4 +53,14 @@ public class TestController {
     public RunResult run(@RequestParam String input) {
         return agentLoop.run(input);
     }
+
+    /**
+     * Draws the agent loop's graph.
+     *
+     * @return the graph as Mermaid text, one edge per line
+     */
+    @GetMapping("/graph")
+    public String graph() {
+        return agentLoop.mermaid();
+    }
 }

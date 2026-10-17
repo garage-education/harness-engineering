@@ -6,7 +6,7 @@ description: What the course teaches, the pinned versions, and the local service
 
 Oct 10, 2026 · @Ahmed Hassanien
 
-This book teaches engineers to build an agent harness with Spring AI in Java. Chapters 2 to 7 also show every step in Python with LangChain. The running example is the Log Incident Watcher. Read the chapters in order. Each chapter adds one idea. Run the code in each chapter before you read the next one. All examples use fake data and run offline.
+This book teaches engineers to build an agent harness with Spring AI in Java. Chapters 2 to 8 also show every step in Python with LangChain. The running example is the Log Incident Watcher. Read the chapters in order. Each chapter adds one idea. Run the code in each chapter before you read the next one. All examples use fake data and run offline.
 
 **Versions:** Spring Boot 4.1.1, Spring AI 2.0.1, Spring AI Session 0.6.0, Temporal 1.35.0. Use released versions only.
 
@@ -43,7 +43,7 @@ The code lives in the `garage-education/harness-engineering` repository on GitHu
 git clone git@github.com:garage-education/harness-engineering.git
 ```
 
-Pick a language: Java with Spring AI, or Python with LangChain. From Chapter 2 to Chapter 7, every code sample has a **Java** tab and a **Python** tab. Your choice applies to every page and is remembered.
+Pick a language: Java with Spring AI, or Python with LangChain. From Chapter 2 to Chapter 8, every code sample has a **Java** tab and a **Python** tab. Your choice applies to every page and is remembered.
 
 You need LM Studio, plus JDK 27 for Java or uv for Python. Chapter 2 sets up the rest.
 
