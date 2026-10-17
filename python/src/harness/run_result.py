@@ -26,6 +26,15 @@ class RunResult:
         STEP_LIMIT = "STEP_LIMIT"
         """The run made ``MAX_STEPS`` model calls without a final answer."""
 
+        TOKEN_BUDGET = "TOKEN_BUDGET"
+        """The run used more than ``MAX_TOKENS`` tokens."""
+
+        TIMEOUT = "TIMEOUT"
+        """The run took longer than ``TIMEOUT``."""
+
+        LOOP_DETECTED = "LOOP_DETECTED"
+        """The model requested the same tool call ``MAX_REPEATS`` times."""
+
     answer: str | None
     reason: StopReason
     steps: int

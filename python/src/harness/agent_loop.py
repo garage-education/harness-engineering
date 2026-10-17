@@ -1,6 +1,9 @@
 """The agent loop, written by hand."""
 
+import json
 import logging
+import time
+from datetime import timedelta
 from typing import Final
 
 from langchain_core.language_models import BaseChatModel
@@ -28,6 +31,15 @@ class AgentLoop:
     MAX_STEPS: Final = 5
     """The most model calls one run can make."""
 
+    MAX_TOKENS: Final = 8_000
+    """The most tokens one run can use, summed over all model calls."""
+
+    TIMEOUT: Final = timedelta(seconds=60)
+    """The longest one run can take. The loop checks it after each model call."""
+
+    MAX_REPEATS: Final = 3
+    """How often the model can request the same tool call before the run stops."""
+
     SYSTEM: Final = "You are a careful assistant. Answer in two sentences or fewer."
 
     def __init__(self, chat: BaseChatModel, log_tools: LogTools) -> None:
@@ -46,6 +58,8 @@ class AgentLoop:
         messages: list[BaseMessage] = [SystemMessage(self.SYSTEM), HumanMessage(question)]
         model = self.chat.bind_tools(tools_from(self.log_tools))
 
+        seen_calls: dict[str, int] = {}
+        deadline = time.monotonic() + self.TIMEOUT.total_seconds()
         tokens = 0
         log.debug("[loop] Start. Your code runs the tools. Question: %s", question)
 
@@ -61,6 +75,21 @@ class AgentLoop:
                 log.debug("[loop] Step %d: no tool calls. Stop: FINAL_ANSWER, %d tokens. Answer: %s", step, tokens, reply.text)
                 return RunResult(reply.text, StopReason.FINAL_ANSWER, step, tokens)
             log.debug("[loop] Step %d: model requested %d tool call(s), %d tokens so far", step, len(reply.tool_calls), tokens)
+
+            # Stop rules, checked before any tool runs.
+            if tokens > self.MAX_TOKENS:
+                log.debug("[loop] Step %d: %d tokens is over MAX_TOKENS %d. Stop: TOKEN_BUDGET", step, tokens, self.MAX_TOKENS)
+                return RunResult(None, StopReason.TOKEN_BUDGET, step, tokens)
+            if time.monotonic() > deadline:
+                log.debug("[loop] Step %d: past the %s deadline. Stop: TIMEOUT", step, self.TIMEOUT)
+                return RunResult(None, StopReason.TIMEOUT, step, tokens)
+            for call in reply.tool_calls:
+                key = call["name"] + json.dumps(call["args"], sort_keys=True)
+                count = seen_calls.get(key, 0) + 1
+                seen_calls[key] = count
+                if count >= self.MAX_REPEATS:
+                    log.debug("[loop] Step %d: %s %s requested %d times. Stop: LOOP_DETECTED", step, call["name"], call["args"], count)
+                    return RunResult(None, StopReason.LOOP_DETECTED, step, tokens)
 
             # 3. Run each tool. 4. Add the results to the messages.
             for call in reply.tool_calls:

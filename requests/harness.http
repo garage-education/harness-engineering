@@ -106,3 +106,21 @@ GET {{app}}/run?input=is checkout or search worse right now?
 # Expect a question back in one step: {"answer":"Please specify which service ...","reason":"FINAL_ANSWER","steps":1,...}
 # Log: [loop] Step 1: no tool calls. Stop: FINAL_ANSWER
 GET {{app}}/run?input=how many error events?
+
+
+### Chapter 6 · Step 3: the stop-reason test
+# Send this request once per row below. Change one constant in AgentLoop.java,
+# restart (or rebuild with DevTools), send, then put the constant back.
+#
+#   no change                          -> FINAL_ANSWER   steps 2
+#   MAX_STEPS = 1                      -> STEP_LIMIT     steps 1, answer null
+#   MAX_TOKENS = 100                   -> TOKEN_BUDGET   steps 1, answer null
+#   TIMEOUT = Duration.ofMillis(1)     -> TIMEOUT        steps 1, answer null
+#   MAX_REPEATS = 1                    -> LOOP_DETECTED  steps 1, answer null
+#
+# Log: each early stop prints its reason before any tool runs, for example
+#      [loop] Step 1: 237 tokens is over MAX_TOKENS 100. Stop: TOKEN_BUDGET
+#
+# Keep the time window in the question. Without it, Gemma can ask for the window in text,
+# which ends the run as FINAL_ANSWER before any limit fires.
+GET {{app}}/run?input=how many error events in the checkout service in the last 15 minutes?

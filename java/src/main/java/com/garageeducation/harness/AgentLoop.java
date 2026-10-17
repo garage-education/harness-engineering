@@ -1,7 +1,11 @@
 package com.garageeducation.harness;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.ai.chat.client.AdvisorParams;
 import org.springframework.ai.chat.client.ChatClient;
@@ -39,6 +43,14 @@ public class AgentLoop {
     /** The most model calls one run can make. */
     static final int MAX_STEPS = 5;
 
+    /** The most tokens one run can use, summed over all model calls. */
+    static final int MAX_TOKENS = 8_000;
+
+    /** The longest one run can take. The loop checks it after each model call. */
+    static final Duration TIMEOUT = Duration.ofSeconds(60);
+
+    /** How often the model can request the same tool call before the run stops. */
+    static final int MAX_REPEATS = 3;
 
     private static final String SYSTEM = "You are a careful assistant. Answer in two sentences or fewer.";
 
@@ -56,6 +68,8 @@ public class AgentLoop {
         messages.add(new SystemMessage(SYSTEM));
         messages.add(new UserMessage(question));
 
+        Map<String, Integer> seenCalls = new HashMap<>();
+        Instant deadline = Instant.now().plus(TIMEOUT);
         int tokens = 0;
         log.debug("[loop] Start. Your code runs the tools. Question: {}", question);
 
@@ -78,6 +92,25 @@ public class AgentLoop {
                 return new RunResult(reply.getText(), StopReason.FINAL_ANSWER, step, tokens);
             }
             log.debug("[loop] Step {}: model requested {} tool call(s), {} tokens so far", step, reply.getToolCalls().size(), tokens);
+
+            // Stop rules, checked before any tool runs.
+            if (tokens > MAX_TOKENS) {
+                log.debug("[loop] Step {}: {} tokens is over MAX_TOKENS {}. Stop: TOKEN_BUDGET", step, tokens, MAX_TOKENS);
+                return new RunResult(null, StopReason.TOKEN_BUDGET, step, tokens);
+            }
+            if (Instant.now().isAfter(deadline)) {
+                log.debug("[loop] Step {}: past the {} deadline. Stop: TIMEOUT", step, TIMEOUT);
+                return new RunResult(null, StopReason.TIMEOUT, step, tokens);
+            }
+            for (ToolCall call : reply.getToolCalls()) {
+                String key = call.name() + call.arguments();
+                int count = seenCalls.getOrDefault(key, 0) + 1;
+                seenCalls.put(key, count);
+                if (count >= MAX_REPEATS) {
+                    log.debug("[loop] Step {}: {} {} requested {} times. Stop: LOOP_DETECTED", step, call.name(), call.arguments(), count);
+                    return new RunResult(null, StopReason.LOOP_DETECTED, step, tokens);
+                }
+            }
 
             // 3. Run each tool. 4. Add the results to the messages.
             List<ToolResponse> results = new ArrayList<>();
