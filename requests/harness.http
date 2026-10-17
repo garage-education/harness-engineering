@@ -1,0 +1,49 @@
+# Test requests for the course, in chapter order.
+#
+# Run them in IntelliJ IDEA (built-in HTTP Client) or VS Code (REST Client extension):
+# open this file and click the run icon next to a request.
+#
+# Start LM Studio first. Start one app on port 8080: ./gradlew bootRun in java/, or uv run harness in python/.
+# The replies shown in the comments come from one run with Gemma. Your wording will differ.
+#
+# Watch the app console after each request. The "Log:" lines below say what to look for.
+# Chapter 2, Table 2.1 explains each log tag.
+
+@lmstudio = http://localhost:1234/v1
+@app = http://localhost:8080
+
+
+### Chapter 2 · List the model identifiers in LM Studio
+# Each model name in application.yaml must match an "id" here.
+GET {{lmstudio}}/models
+
+
+### Chapter 2 · Pre-flight: Gemma must return a tool call
+# Expect "finish_reason": "tool_calls" and a countErrors call with service "checkout".
+# If the reply has no tool_calls, do not start Chapter 3.
+POST {{lmstudio}}/chat/completions
+Content-Type: application/json
+
+{
+  "model": "google/gemma-4-12b-qat",
+  "messages": [
+    {"role": "user", "content": "How many error events in the checkout service in the last 15 minutes?"}
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "countErrors",
+        "description": "Count error log events for one service in the last N minutes.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "service": {"type": "string"},
+            "minutes": {"type": "integer"}
+          },
+          "required": ["service", "minutes"]
+        }
+      }
+    }
+  ]
+}
