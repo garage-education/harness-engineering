@@ -46,7 +46,7 @@ toc: true
 
 ## About "Building an Agent Harness with Spring AI"
 
-This book teaches Java engineers to build an agent harness with Spring AI. The running example is the Log Incident Watcher. Read the chapters in order. Each chapter adds one idea. Run the code in each chapter before you read the next one. All examples use fake data and run offline.
+This book teaches engineers to build an agent harness with Spring AI in Java. Chapters 2 to 6 also show every step in Python with LangChain. The running example is the Log Incident Watcher. Read the chapters in order. Each chapter adds one idea. Run the code in each chapter before you read the next one. All examples use fake data and run offline.
 
 ## What you will build
 
@@ -93,6 +93,51 @@ def yaml_str(s):
     return json.dumps(s, ensure_ascii=False)   # a JSON string is a valid YAML scalar
 
 
+def tab_slug(label):
+    return re.sub(r'[^a-z0-9]+', '-', label.lower()).strip('-')
+
+
+def hugo_tabs(body):
+    """Turn each '::: tabs' block into the same HTML as build_site.py.
+
+    Each panel's content stays Markdown between blank lines, so Goldmark renders it
+    and Chroma highlights its code.
+    """
+    lines, out, i, group = body.split('\n'), [], 0, 0
+    while i < len(lines):
+        if lines[i].strip() != '::: tabs':
+            out.append(lines[i])
+            i += 1
+            continue
+        group += 1
+        tabs, j = [], i + 1
+        while j < len(lines) and lines[j].strip() != ':::':
+            m = re.match(r'::: tab (.+)', lines[j].strip())
+            if not m:
+                j += 1
+                continue
+            k = j + 1
+            while k < len(lines) and lines[k].strip() != ':::':
+                k += 1
+            tabs.append((m.group(1).strip(), lines[j + 1:k]))
+            j = k + 1
+        i = j + 1
+        bar = ''.join(
+            f'<button type="button" role="tab" class="lang-tab" id="t{group}-{tab_slug(label)}-tab" '
+            f'data-lang="{tab_slug(label)}" aria-controls="t{group}-{tab_slug(label)}" '
+            f'aria-selected="{"true" if n == 0 else "false"}">{label}</button>'
+            for n, (label, _) in enumerate(tabs))
+        out.append('<div class="lang-tabs">')
+        out.append(f'<div class="lang-tabs__bar" role="tablist" aria-label="Code language">{bar}</div>')
+        for label, content in tabs:
+            pid = f't{group}-{tab_slug(label)}'
+            out.append(f'<div class="lang-panel" role="tabpanel" id="{pid}" data-lang="{tab_slug(label)}" '
+                       f'data-label="{label}" aria-labelledby="{pid}-tab">')
+            out.extend(['', *content, '', '</div>'])
+        out.append('</div>')
+    return '\n'.join(out)
+
+
 def write(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     open(path, 'w', encoding='utf-8').write(text)
@@ -121,6 +166,7 @@ def main():
             path = target[3:] if target.startswith('../') else f'{group}/{target}'
             return f']({ref(path[:-5])})'
         body = re.sub(r'\]\(((?:\.\./)?[\w./-]+?\.html)\)', link, body)
+        body = hugo_tabs(body)
         # Unknown facts stay visible, as in the standalone build.
         return re.sub(r'\[NEEDS INPUT:\s*([^\]]*)\]', r'<span class="needs-input">NEEDS INPUT: \1</span>', body)
 

@@ -136,7 +136,7 @@ def highlight_java(line, state):
 
 def highlight_simple(line, lang):
     """Comments, strings, and keywords for the other languages the course uses."""
-    comment = {'yaml': '#', 'bash': '#', 'sql': '--', 'kotlin': '//'}.get(lang)
+    comment = {'yaml': '#', 'bash': '#', 'sql': '--', 'kotlin': '//', 'python': '#', 'toml': '#'}.get(lang)
     if lang == 'markdown':
         if line.startswith('#') or line == '---':
             return span('co' if line == '---' else 'fu', line)
@@ -213,17 +213,53 @@ def inline(text, link=None):
     return re.sub('\x00(\\d+)\x00', lambda m: codes[int(m.group(1))], t)
 
 
-BLOCK_START = re.compile(r'(```|#{1,6} |<|\||- |\d+\. |> )')
+BLOCK_START = re.compile(r'(```|#{1,6} |<|\||- |\d+\. |> |:::)')
+
+
+def read_tabs(lines, i):
+    """Read a '::: tabs' block that starts at lines[i]. Returns ([(label, body lines)], next index)."""
+    tabs, j = [], i + 1
+    while j < len(lines) and lines[j].strip() != ':::':
+        m = re.match(r'::: tab (.+)', lines[j].strip())
+        if not m:
+            j += 1
+            continue
+        k = j + 1
+        while k < len(lines) and lines[k].strip() != ':::':
+            k += 1
+        tabs.append((m.group(1).strip(), lines[j + 1:k]))
+        j = k + 1
+    return tabs, j + 1
+
+
+def tab_group(tabs, link, prefix):
+    """One language tab group. Without JavaScript, every panel shows, each under its label."""
+    bar, panels = [], []
+    for n, (label, body) in enumerate(tabs):
+        lang, pid = slug(label), f'{prefix}-{slug(label)}'
+        selected = 'true' if n == 0 else 'false'
+        bar.append(f'<button type="button" role="tab" class="lang-tab" id="{pid}-tab" data-lang="{lang}" '
+                   f'aria-controls="{pid}" aria-selected="{selected}">{esc(label)}</button>')
+        html = render('\n'.join(body), link, f'{prefix}{lang}')[0]
+        panels.append(f'<div class="lang-panel" role="tabpanel" id="{pid}" data-lang="{lang}" '
+                      f'data-label="{esc(label)}" aria-labelledby="{pid}-tab">\n{html}\n</div>')
+    return ('<div class="lang-tabs">\n<div class="lang-tabs__bar" role="tablist" aria-label="Code language">'
+            + ''.join(bar) + '</div>\n' + '\n'.join(panels) + '\n</div>')
 
 
 def render(md, link=None, cb_prefix='cb'):
     """Render the Markdown subset the course uses. Returns (html, [(level, id, text)])."""
     lines = md.split('\n')
-    out, heads, i, cb = [], [], 0, 1
+    out, heads, i, cb, tg = [], [], 0, 1, 1
     while i < len(lines):
         line = lines[i]
         if not line.strip():
             i += 1
+            continue
+        if line.strip() == '::: tabs':
+            tabs, i = read_tabs(lines, i)
+            out.append(tab_group(tabs, link, f'{cb_prefix}t{tg}'))
+            tg += 1
             continue
         if line.startswith('```'):
             lang, j = line[3:].strip(), i + 1

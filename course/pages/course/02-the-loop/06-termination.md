@@ -16,7 +16,11 @@ The Chapter 5 loop stops on a final answer or after 5 steps. Five steps can stil
 
 ## Step 1: Name every stop reason
 
-Add three values to `StopReason` in `RunResult.java`:
+Add three values to `StopReason`.
+
+::: tabs
+::: tab Java
+This is the full `RunResult.java`:
 
 ```java
 package com.garageeducation.harness;
@@ -56,6 +60,56 @@ public record RunResult(String answer, StopReason reason, int steps, int tokens)
 }
 ```
 
+:::
+::: tab Python
+This is the full `run_result.py`:
+
+```python
+"""The outcome of one agent run."""
+
+from dataclasses import dataclass
+from enum import StrEnum
+
+
+@dataclass(frozen=True)
+class RunResult:
+    """The outcome of one agent run.
+
+    Every run returns one ``RunResult``. The ``StopReason`` says why the run ended.
+
+    Attributes:
+        answer: the model's final text; ``None`` when the run stopped before a final answer
+        reason: the reason the run stopped
+        steps: the number of model calls the run made
+        tokens: the total tokens the run used, as reported by the model server
+    """
+
+    class StopReason(StrEnum):
+        """Why a run stopped. Each run stops for exactly one reason."""
+
+        FINAL_ANSWER = "FINAL_ANSWER"
+        """The model replied without tool calls. Its text is the answer."""
+
+        STEP_LIMIT = "STEP_LIMIT"
+        """The run made ``MAX_STEPS`` model calls without a final answer."""
+
+        TOKEN_BUDGET = "TOKEN_BUDGET"
+        """The run used more than ``MAX_TOKENS`` tokens."""
+
+        TIMEOUT = "TIMEOUT"
+        """The run took longer than ``TIMEOUT``."""
+
+        LOOP_DETECTED = "LOOP_DETECTED"
+        """The model requested the same tool call ``MAX_REPEATS`` times."""
+
+    answer: str | None
+    reason: StopReason
+    steps: int
+    tokens: int
+```
+:::
+:::
+
 Table 6.1 lists each reason and the limit behind it.
 
 | `StopReason` | Limit | Protects |
@@ -68,9 +122,12 @@ Table 6.1 lists each reason and the limit behind it.
 
 <p class="caption">Table 6.1. The stop reasons and their limits. Chapter 9 adds <code>APPROVAL_TIMEOUT</code> and <code>REJECTED</code>.</p>
 
-### What Spring AI stops on its own
+### What the framework stops on its own
 
-`ToolCallingAdvisor` from Chapter 4 runs a loop too. Table 6.2 compares its stop rules with yours.
+The Chapter 4 framework loop has stop rules too. Table 6.2 compares them with yours.
+
+::: tabs
+::: tab Java
 
 | `StopReason` | `ToolCallingAdvisor` (Chapter 4) | `AgentLoop` |
 |---|---|---|
@@ -87,6 +144,25 @@ Table 6.1 lists each reason and the limit behind it.
 - **The caps are properties.** Set `spring.ai.tools.limits.max-calls-per-tool-default` and `spring.ai.tools.limits.max-total-tool-calls` in `application.yaml`. The value `-1` turns a cap off.
 
 Spring AI has no token or time limit for the tool loop. A harness needs both, so you write them.
+:::
+::: tab Python
+| `StopReason` | `create_agent` (Chapter 4) | `AgentLoop` |
+|---|---|---|
+| `FINAL_ANSWER` | Stops when the reply has no tool calls | The same |
+| `STEP_LIMIT` | None by default. The graph stops after 10,007 steps. `ModelCallLimitMiddleware` caps model calls. | 5 model calls |
+| `TOKEN_BUDGET` | None | 8,000 tokens |
+| `TIMEOUT` | None | 60 seconds |
+| `LOOP_DETECTED` | None by default. `ToolCallLimitMiddleware` caps calls per tool, whatever their arguments. | 3 identical calls: same tool, same arguments |
+
+<p class="caption">Table 6.2. LangChain's stop rules next to yours, with the LangChain 1.4 and LangGraph 1.2 defaults.</p>
+
+- **The middleware does not protect `/run`.** Middleware runs inside `create_agent`. `AgentLoop` calls the model and the tools itself. Your limits are the only ones.
+- **You choose what happens on a breach.** `exit_behavior="end"` ends the run with a message. `"error"` raises an exception. `"continue"`, the default for tool limits, blocks the extra call and lets the model go on.
+- **Add the limits in code.** For example, `create_agent(…, middleware=[ModelCallLimitMiddleware(run_limit=5)])`.
+
+LangChain has no token or time limit for the agent loop. A harness needs both, so you write them.
+:::
+:::
 
 ## Step 2: Check the rules in order
 
@@ -115,6 +191,8 @@ The loop checks the rules after each model reply. Figure 6.1 shows the order.
 - **The limits come before the tools.** A tool never runs after the run is over budget.
 - **The step limit comes last.** The `for` loop checks it before the next model call.
 
+::: tabs
+::: tab Java
 This is the full `AgentLoop.java` in the repository. The new lines are the three constants, the three tracking variables, and the stop-rule block.
 
 ```java
@@ -271,6 +349,138 @@ Each rule needs one variable:
 - **`tokens`** sums `getTotalTokens()` over every call. LM Studio reports usage in each response.
 - **`deadline`** is the start time plus `TIMEOUT`. The loop compares it with the clock after each call.
 - **`seenCalls`** counts each tool name plus its exact JSON arguments. The third identical call stops the run.
+:::
+::: tab Python
+This is the full `agent_loop.py` in the repository. The new lines are the three constants, the three tracking variables, and the stop-rule block.
+
+```python
+"""The agent loop, written by hand."""
+
+import json
+import logging
+import time
+from datetime import timedelta
+from typing import Final
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolCall, ToolMessage
+
+from harness.log_tools import LogTools
+from harness.run_result import RunResult
+from harness.tool_support import tools_from
+
+log: Final = logging.getLogger(__name__)
+
+StopReason = RunResult.StopReason
+
+
+class AgentLoop:
+    """The agent loop, written by hand.
+
+    Each step sends the full message list to the model. A reply without tool calls ends the run.
+    Otherwise, the loop runs each tool, adds the results to the messages, and repeats.
+
+    ``bind_tools`` only sends the tool definitions. No agent runs the tools, so the model's
+    tool calls come back to this code.
+    """
+
+    MAX_STEPS: Final = 5
+    """The most model calls one run can make."""
+
+    MAX_TOKENS: Final = 8_000
+    """The most tokens one run can use, summed over all model calls."""
+
+    TIMEOUT: Final = timedelta(seconds=60)
+    """The longest one run can take. The loop checks it after each model call."""
+
+    MAX_REPEATS: Final = 3
+    """How often the model can request the same tool call before the run stops."""
+
+    SYSTEM: Final = "You are a careful assistant. Answer in two sentences or fewer."
+
+    def __init__(self, chat: BaseChatModel, log_tools: LogTools) -> None:
+        self.chat = chat
+        self.log_tools = log_tools
+
+    def run(self, question: str) -> RunResult:
+        """Runs the loop for one question.
+
+        Args:
+            question: the user's question, in plain text
+
+        Returns:
+            the answer, the stop reason, the step count, and the tokens used
+        """
+        messages: list[BaseMessage] = [SystemMessage(self.SYSTEM), HumanMessage(question)]
+        model = self.chat.bind_tools(tools_from(self.log_tools))
+
+        seen_calls: dict[str, int] = {}
+        deadline = time.monotonic() + self.TIMEOUT.total_seconds()
+        tokens = 0
+        log.debug("[loop] Start. Your code runs the tools. Question: %s", question)
+
+        for step in range(1, self.MAX_STEPS + 1):
+            # 1. Send the messages to the model.
+            log.debug("[loop] Step %d/%d: sending %d messages to the model", step, self.MAX_STEPS, len(messages))
+            reply: AIMessage = model.invoke(messages)
+            messages.append(reply)
+            tokens += reply.usage_metadata["total_tokens"] if reply.usage_metadata else 0
+
+            # 2. A reply without tool calls is the answer.
+            if not reply.tool_calls:
+                log.debug("[loop] Step %d: no tool calls. Stop: FINAL_ANSWER, %d tokens. Answer: %s", step, tokens, reply.text)
+                return RunResult(reply.text, StopReason.FINAL_ANSWER, step, tokens)
+            log.debug("[loop] Step %d: model requested %d tool call(s), %d tokens so far", step, len(reply.tool_calls), tokens)
+
+            # Stop rules, checked before any tool runs.
+            if tokens > self.MAX_TOKENS:
+                log.debug("[loop] Step %d: %d tokens is over MAX_TOKENS %d. Stop: TOKEN_BUDGET", step, tokens, self.MAX_TOKENS)
+                return RunResult(None, StopReason.TOKEN_BUDGET, step, tokens)
+            if time.monotonic() > deadline:
+                log.debug("[loop] Step %d: past the %s deadline. Stop: TIMEOUT", step, self.TIMEOUT)
+                return RunResult(None, StopReason.TIMEOUT, step, tokens)
+            for call in reply.tool_calls:
+                key = call["name"] + json.dumps(call["args"], sort_keys=True)
+                count = seen_calls.get(key, 0) + 1
+                seen_calls[key] = count
+                if count >= self.MAX_REPEATS:
+                    log.debug("[loop] Step %d: %s %s requested %d times. Stop: LOOP_DETECTED", step, call["name"], call["args"], count)
+                    return RunResult(None, StopReason.LOOP_DETECTED, step, tokens)
+
+            # 3. Run each tool. 4. Add the results to the messages.
+            for call in reply.tool_calls:
+                log.debug("[loop] Step %d: your code runs %s %s", step, call["name"], call["args"])
+                messages.append(ToolMessage(self.run_tool(call), tool_call_id=call["id"], name=call["name"]))
+        log.debug("[loop] Used all %d steps without a final answer. Stop: STEP_LIMIT", self.MAX_STEPS)
+        return RunResult(None, StopReason.STEP_LIMIT, self.MAX_STEPS, tokens)
+
+    def run_tool(self, call: ToolCall) -> str:
+        """Runs one tool call and returns its result as text.
+
+        ``tools_from`` wraps each ``@tool`` method in a LangChain tool. The loop picks the tool
+        whose name matches the call. An unknown name returns an error text to the model instead
+        of failing the run.
+
+        Args:
+            call: one tool call from the model's reply
+
+        Returns:
+            the tool's result, or an error text for an unknown tool
+        """
+        for tool in tools_from(self.log_tools):
+            if tool.name == call["name"]:
+                return str(tool.invoke(call["args"]))
+        log.warning("[loop] Model requested an unknown tool: %s", call["name"])
+        return "Unknown tool: " + call["name"]
+```
+
+Each rule needs one variable:
+
+- **`tokens`** sums `usage_metadata["total_tokens"]` over every call. LM Studio reports usage in each response.
+- **`deadline`** is the clock time plus `TIMEOUT`. `time.monotonic()` never jumps when the system clock changes.
+- **`seen_calls`** counts each tool name plus its arguments. `json.dumps(…, sort_keys=True)` writes the same text for the same arguments. The third identical call stops the run.
+:::
+:::
 
 The timeout does not cut a slow model call short. It stops the run at the next check.
 
@@ -284,6 +494,8 @@ curl -G http://localhost:8080/run --data-urlencode "input=how many error events 
 
 Table 6.3 shows the results from one run with Gemma.
 
+::: tabs
+::: tab Java
 | Change | Result |
 |---|---|
 | none | `{"answer":"There were 412 error events in the checkout service over the last 15 minutes.","reason":"FINAL_ANSWER","steps":2,"tokens":447}` |
@@ -291,11 +503,24 @@ Table 6.3 shows the results from one run with Gemma.
 | `MAX_TOKENS = 100` | `{"answer":null,"reason":"TOKEN_BUDGET","steps":1,"tokens":242}` |
 | `TIMEOUT = Duration.ofMillis(1)` | `{"answer":null,"reason":"TIMEOUT","steps":1,"tokens":230}` |
 | `MAX_REPEATS = 1` | `{"answer":null,"reason":"LOOP_DETECTED","steps":1,"tokens":232}` |
+:::
+::: tab Python
+| Change | Result |
+|---|---|
+| none | `{"answer":"There were 412 error events in the checkout service over the last 15 minutes.","reason":"FINAL_ANSWER","steps":2,"tokens":454}` |
+| `MAX_STEPS: Final = 1` | `{"answer":null,"reason":"STEP_LIMIT","steps":1,"tokens":234}` |
+| `MAX_TOKENS: Final = 100` | `{"answer":null,"reason":"TOKEN_BUDGET","steps":1,"tokens":229}` |
+| `TIMEOUT: Final = timedelta(milliseconds=1)` | `{"answer":null,"reason":"TIMEOUT","steps":1,"tokens":289}` |
+| `MAX_REPEATS: Final = 1` | `{"answer":null,"reason":"LOOP_DETECTED","steps":1,"tokens":256}` |
+:::
+:::
 
 <p class="caption">Table 6.3. One limit lowered per run, with Gemma. Token counts vary between runs.</p>
 
 Each stop logs its reason. This is the log for `MAX_TOKENS = 100`:
 
+::: tabs
+::: tab Java
 ```text
 00:16:01.359 DEBUG DispatcherServlet                        GET "/run?input=how+many+error+events+in+the+checkout+service+in+the+last+15+minutes%3F", parameters={masked}
 00:16:01.360 DEBUG AgentLoop                                [loop] Start. Your code runs the tools. Question: how many error events in the checkout service in the last 15 minutes?
@@ -308,6 +533,23 @@ Each stop logs its reason. This is the log for `MAX_TOKENS = 100`:
 00:16:02.438 DEBUG AgentLoop                                [loop] Step 1: 237 tokens is over MAX_TOKENS 100. Stop: TOKEN_BUDGET
 00:16:02.440 DEBUG DispatcherServlet                        Completed 200 OK
 ```
+
+:::
+::: tab Python
+```text
+16:07:49.118 DEBUG harness.agent_loop                       [loop] Start. Your code runs the tools. Question: how many error events in the checkout service in the last 15 minutes?
+16:07:49.118 DEBUG harness.agent_loop                       [loop] Step 1/5: sending 2 messages to the model
+16:07:49.120 INFO  ChatModelPromptContent                   Chat Model Prompt Content:
+['You are a careful assistant. Answer in two sentences or fewer.', 'how many error events in the checkout service in the last 15 minutes?']
+16:07:52.134 INFO  httpx2                                   HTTP Request: POST http://localhost:1234/v1/chat/completions "HTTP/1.1 200 OK"
+16:07:52.140 INFO  ChatModelCompletion                      Chat Model Completion:
+[]
+16:07:52.141 DEBUG harness.agent_loop                       [loop] Step 1: model requested 1 tool call(s), 237 tokens so far
+16:07:52.141 DEBUG harness.agent_loop                       [loop] Step 1: 237 tokens is over MAX_TOKENS 100. Stop: TOKEN_BUDGET
+16:07:52.141 INFO  uvicorn.access                           127.0.0.1:63495 - "GET /run?input=how%20many%20error%20events%20in%20the%20checkout%20service%20in%20the%20last%2015%20minutes%3F HTTP/1.1" 200
+```
+:::
+:::
 
 The run stops after step 1. No `your code runs` line follows, so no tool ran.
 

@@ -311,6 +311,22 @@ a.dg-node:hover { box-shadow: 0 0 0 3px rgba(46, 196, 182, 0.35); text-decoratio
 .flow-arrow { width: 2px; height: 1.4rem; background: var(--line-strong); position: relative; }
 .flow-arrow::after { position: absolute; bottom: -1px; left: -4px; border: 5px solid transparent; border-top-color: var(--line-strong); content: ''; }
 
+/* Language tabs. Without JavaScript, every panel shows under its label. */
+.lang-tabs { margin: 1.2rem 0 1.6rem; }
+.lang-tabs__bar { display: none; }
+.lang-panel::before { display: block; margin: 1rem 0 0.4rem; color: var(--muted); font: 600 0.74rem var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; content: attr(data-label); }
+.lang-panel > :first-child { margin-top: 0; }
+.tabs-ready .lang-tabs__bar { display: flex; gap: 0.25rem; margin-bottom: 0.9rem; border-bottom: 1px solid var(--line); }
+.tabs-ready .lang-panel::before { content: none; }
+.tabs-ready .lang-panel[hidden] { display: none; }
+.lang-tab {
+  margin-bottom: -1px; padding: 0.45rem 0.95rem; border: 0; border-bottom: 2px solid transparent;
+  background: none; color: var(--muted); font: 600 0.88rem var(--font-body); cursor: pointer;
+}
+.lang-tab:hover { color: var(--ink); }
+.lang-tab[aria-selected="true"] { border-bottom-color: var(--teal-deep); color: var(--teal-deep); }
+.lang-tab:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
+
 /* Hand-drawn sketch helpers for inline SVG */
 .sk-box { fill: #fff; stroke: var(--ink); stroke-width: 1.6; }
 .sk-box.cat-1 { stroke: var(--cat-1); } .sk-box.cat-2 { stroke: var(--cat-2); } .sk-box.cat-3 { stroke: var(--cat-3); }

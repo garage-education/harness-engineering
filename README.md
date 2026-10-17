@@ -2,7 +2,7 @@
 
 Oct 10, 2026 · @Ahmed Hassanien
 
-This course teaches Java engineers to build an agent harness with Spring AI. The running example is the Log Incident Watcher. It has 7 parts and 25 chapters. Each chapter adds one idea. All examples use fake data and run offline.
+This course teaches engineers to build an agent harness with Spring AI in Java. Chapters 2 to 6 also show every step in Python with LangChain. The running example is the Log Incident Watcher. It has 7 parts and 25 chapters. Each chapter adds one idea. All examples use fake data and run offline.
 
 **Versions:** Spring Boot 4.1.1, Spring AI 2.0.1, Spring AI Session 0.6.0, Temporal 1.35.0.
 
@@ -14,7 +14,8 @@ Read the course on the [Garage Education website](https://www.garageeducation.or
 
 | You need | Check |
 |---|---|
-| JDK 27 | `java -version` prints 27. Gradle does not download it for you. |
+| JDK 27, for Java | `java -version` prints 27. Gradle does not download it for you. |
+| uv, for Python | `uv --version`. uv downloads Python 3.14 for you. |
 | LM Studio, server on port 1234 | `curl http://localhost:1234/v1/models` lists the models below |
 | Model `google/gemma-4-12b-qat` | Chat and tool calls |
 | Model `text-embedding-bge-m3` | Embeddings, from Chapter 11 |
@@ -28,20 +29,29 @@ cd harness-engineering/java
 ./gradlew bootRun
 ```
 
-On Windows, run `gradlew.bat bootRun`. The app listens on port 8080.
+On Windows, run `gradlew.bat bootRun`.
+
+For Python, start the app from the `python/` folder instead:
+
+```bash
+cd harness-engineering/python
+uv run harness
+```
+
+Both apps listen on port 8080 and answer the same requests. Run one at a time.
 
 ### Each chapter, in four steps
 
 1. **Read** the chapter. It shows the code for that chapter only.
-2. **Write** the code, or compare it with `java/src/main/java/com/garageeducation/harness/`.
+2. **Write** the code, or compare it with `java/src/main/java/com/garageeducation/harness/` or `python/src/harness/`. Each chapter has a Java tab and a Python tab.
 3. **Send** the chapter's requests in `requests/harness.http`. Each request names its chapter.
 4. **Read** the console log. Each chapter shows the log lines to expect. Chapter 2, Table 2.1 explains every log tag.
 
 Run Chapter 2's two requests first. Gemma must return a tool call before you start Chapter 3.
 
-### What `java/` holds
+### What `java/` and `python/` hold
 
-`java/` holds the code after Chapter 6. It is ahead of Chapters 3 to 5. For example, `Assistant.java` already has `askHaltToolCall` from Chapter 5. Each chapter shows the version of each file for that point in the course.
+`java/` and `python/` hold the code after Chapter 6. It is ahead of Chapters 3 to 5. For example, `Assistant.java` already has `askHaltToolCall` from Chapter 5. Each chapter shows the version of each file for that point in the course.
 
 Model replies differ between runs. Compare the shape of each reply and log, not the exact words.
 
@@ -71,6 +81,7 @@ Open http://localhost:8000. Edit any file under `course/`, then refresh the brow
 | `course/site.json` | The site title, colors, footer, and print settings |
 | `course/assets/` | The site CSS and the diagram script |
 | `java/` | The Spring Boot code the chapters walk through. Open this folder in your IDE. |
+| `python/` | The same app in Python, with LangChain and FastAPI |
 | `requests/harness.http` | Every test request in the course, in chapter order |
 
 ### Publish

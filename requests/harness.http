@@ -3,7 +3,7 @@
 # Run them in IntelliJ IDEA (built-in HTTP Client) or VS Code (REST Client extension):
 # open this file and click the run icon next to a request.
 #
-# Start LM Studio first. Start the app with ./gradlew bootRun in java/ (port 8080).
+# Start LM Studio first. Start one app on port 8080: ./gradlew bootRun in java/, or uv run harness in python/.
 # The replies shown in the comments come from one run with Gemma. Your wording will differ.
 #
 # Watch the app console after each request. The "Log:" lines below say what to look for.

@@ -1,0 +1,42 @@
+# The same settings as java/src/main/resources/application.yaml.
+server:
+  port: 8080
+
+ai:
+  openai:
+    base-url: http://localhost:1234/v1
+    api-key: lm-studio
+    chat:
+      model: google/gemma-4-12b-qat
+    embedding:
+      model: text-embedding-bge-m3
+  chat:
+    observations:
+      # Log every prompt sent to the model and every reply. Local and fake data only:
+      # in production these logs can contain user data.
+      log-prompt: true
+      log-completion: true
+
+# Python's logging.config.dictConfig format. Uvicorn uses it too.
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    console:
+      # Time, level, logger name, message. The same layout as the Java app.
+      format: "%(asctime)s.%(msecs)03d %(levelname)-5s %(name)-40s %(message)s"
+      datefmt: "%H:%M:%S"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: console
+  root:
+    level: INFO
+    handlers: [console]
+  loggers:
+    # Our code: one line per decision in Assistant, AgentLoop, and LogTools.
+    harness:
+      level: DEBUG
+    # LangChain runs a tool: "Executing tool call: count_errors" (agent path only).
+    ToolCalling:
+      level: DEBUG
