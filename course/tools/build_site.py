@@ -194,21 +194,23 @@ def code_block(lang, lines, cid):
 
 
 def inline(text, link=None):
-    out = []
-    for part in re.split(r'(`[^`]+`)', text):
-        if part.startswith('`') and part.endswith('`') and len(part) > 1:
-            out.append('<code>' + esc(part[1:-1]) + '</code>')
-            continue
-        # Keep inline HTML tags, escape the rest.
-        pieces = re.split(r'(</?[a-zA-Z][^>]*>)', part)
-        t = ''.join(p if re.match(r'</?[a-zA-Z][^>]*>$', p) else esc(p) for p in pieces)
-        t = re.sub(r'\[(NEEDS INPUT:[^\]]*)\]', r'<span class="needs-input">\1</span>', t)
-        t = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', t)
-        t = re.sub(r'(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])', r'<em>\1</em>', t)
-        t = re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)',
-                   lambda m: f'<a href="{link(m.group(2)) if link else m.group(2)}">{m.group(1)}</a>', t)
-        out.append(t)
-    return ''.join(out)
+    # Swap code spans for placeholders first, so bold and links can wrap them.
+    codes = []
+
+    def hold(m):
+        codes.append('<code>' + esc(m.group(1)) + '</code>')
+        return '\x00%d\x00' % (len(codes) - 1)
+
+    t = re.sub(r'`([^`]+)`', hold, text)
+    # Keep inline HTML tags, escape the rest.
+    pieces = re.split(r'(</?[a-zA-Z][^>]*>)', t)
+    t = ''.join(p if re.match(r'</?[a-zA-Z][^>]*>$', p) else esc(p) for p in pieces)
+    t = re.sub(r'\[(NEEDS INPUT:[^\]]*)\]', r'<span class="needs-input">\1</span>', t)
+    t = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', t)
+    t = re.sub(r'(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])', r'<em>\1</em>', t)
+    t = re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)',
+               lambda m: f'<a href="{link(m.group(2)) if link else m.group(2)}">{m.group(1)}</a>', t)
+    return re.sub('\x00(\\d+)\x00', lambda m: codes[int(m.group(1))], t)
 
 
 BLOCK_START = re.compile(r'(```|#{1,6} |<|\||- |\d+\. |> )')
