@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.ai.chat.client.AdvisorParams;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.SafeGuardAdvisor;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.AssistantMessage.ToolCall;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,9 @@ public class Assistant {
      * <p>{@link ChatClient} registers a {@code ToolCallingAdvisor} by default. The advisor runs each
      * tool call, sends the result back to the model, and repeats until the reply has no tool calls.
      *
+     * <p>{@link SafeGuardAdvisor} blocks a question that contains a word from {@link Guardrails#BLOCKED_WORDS}.
+     * It returns a fixed text without calling the model.
+     *
      * @param question the user's question, in plain text
      * @return the model's final text reply
      */
@@ -48,6 +52,7 @@ public class Assistant {
                 .system(SYSTEM)
                 .user(question)
                 .tools(logTools)
+                .advisors(new SafeGuardAdvisor(Guardrails.BLOCKED_WORDS))
                 .call()
                 .content();
         log.debug("[auto] Final answer: {}", answer);

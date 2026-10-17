@@ -9,6 +9,7 @@ from typing import Final
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolCall, ToolMessage
 
+from harness.guardrails import Guardrails
 from harness.log_tools import LogTools
 from harness.run_result import RunResult
 from harness.tool_support import tools_from
@@ -26,6 +27,8 @@ class AgentLoop:
 
     ``bind_tools`` only sends the tool definitions. No agent runs the tools, so the model's
     tool calls come back to this code.
+
+    ``Guardrails`` checks the question before the first model call, and each tool call before it runs.
     """
 
     MAX_STEPS: Final = 5
@@ -42,9 +45,10 @@ class AgentLoop:
 
     SYSTEM: Final = "You are a careful assistant. Answer in two sentences or fewer."
 
-    def __init__(self, chat: BaseChatModel, log_tools: LogTools) -> None:
+    def __init__(self, chat: BaseChatModel, log_tools: LogTools, guardrails: Guardrails) -> None:
         self.chat = chat
         self.log_tools = log_tools
+        self.guardrails = guardrails
 
     def run(self, question: str) -> RunResult:
         """Runs the loop for one question.
@@ -57,6 +61,11 @@ class AgentLoop:
         """
         messages: list[BaseMessage] = [SystemMessage(self.SYSTEM), HumanMessage(question)]
         model = self.chat.bind_tools(tools_from(self.log_tools))
+
+        blocked = self.guardrails.check_question(question)
+        if blocked is not None:
+            log.debug("[guard] %s Stop: BLOCKED, no model call", blocked)
+            return RunResult(blocked, StopReason.BLOCKED, 0, 0)
 
         seen_calls: dict[str, int] = {}
         deadline = time.monotonic() + self.TIMEOUT.total_seconds()
@@ -91,8 +100,13 @@ class AgentLoop:
                     log.debug("[loop] Step %d: %s %s requested %d times. Stop: LOOP_DETECTED", step, call["name"], call["args"], count)
                     return RunResult(None, StopReason.LOOP_DETECTED, step, tokens)
 
-            # 3. Run each tool. 4. Add the results to the messages.
+            # 3. Check and run each tool. 4. Add the results to the messages.
             for call in reply.tool_calls:
+                rejected = self.guardrails.check_tool_call(call)
+                if rejected is not None:
+                    log.debug("[guard] Step %d: %s %s not run. %s", step, call["name"], call["args"], rejected)
+                    messages.append(ToolMessage(rejected, tool_call_id=call["id"], name=call["name"]))
+                    continue
                 log.debug("[loop] Step %d: your code runs %s %s", step, call["name"], call["args"])
                 messages.append(ToolMessage(self.run_tool(call), tool_call_id=call["id"], name=call["name"]))
         log.debug("[loop] Used all %d steps without a final answer. Stop: STEP_LIMIT", self.MAX_STEPS)

@@ -34,6 +34,8 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>{@link ChatClient} runs tools by itself through its {@code ToolCallingAdvisor}.
  * This class turns that advisor off, so the model's tool calls come back to this code.
+ *
+ * <p>{@link Guardrails} checks the question before the first model call, and each tool call before it runs.
  */
 @Slf4j
 @Service
@@ -56,6 +58,7 @@ public class AgentLoop {
 
     private final ChatClient chat;
     private final LogTools logTools;
+    private final Guardrails guardrails;
 
     /**
      * Runs the loop for one question.
@@ -67,6 +70,12 @@ public class AgentLoop {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(SYSTEM));
         messages.add(new UserMessage(question));
+
+        String blocked = guardrails.checkQuestion(question);
+        if (blocked != null) {
+            log.debug("[guard] {} Stop: BLOCKED, no model call", blocked);
+            return new RunResult(blocked, StopReason.BLOCKED, 0, 0);
+        }
 
         Map<String, Integer> seenCalls = new HashMap<>();
         Instant deadline = Instant.now().plus(TIMEOUT);
@@ -112,9 +121,15 @@ public class AgentLoop {
                 }
             }
 
-            // 3. Run each tool. 4. Add the results to the messages.
+            // 3. Check and run each tool. 4. Add the results to the messages.
             List<ToolResponse> results = new ArrayList<>();
             for (ToolCall call : reply.getToolCalls()) {
+                String rejected = guardrails.checkToolCall(call);
+                if (rejected != null) {
+                    log.debug("[guard] Step {}: {} {} not run. {}", step, call.name(), call.arguments(), rejected);
+                    results.add(new ToolResponse(call.id(), call.name(), rejected));
+                    continue;
+                }
                 log.debug("[loop] Step {}: your code runs {} {}", step, call.name(), call.arguments());
                 results.add(new ToolResponse(call.id(), call.name(), runTool(call)));
             }

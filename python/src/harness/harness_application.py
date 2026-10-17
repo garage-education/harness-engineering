@@ -7,6 +7,7 @@ from harness.agent_loop import AgentLoop
 from harness.ai_config import AiConfig
 from harness.application_properties import ApplicationProperties
 from harness.assistant import Assistant
+from harness.guardrails import Guardrails
 from harness.log_tools import LogTools
 from harness.test_controller import TestController
 
@@ -23,7 +24,7 @@ def create_app() -> FastAPI:
     properties = ApplicationProperties.load()
     chat = AiConfig(properties).chat_model()
     log_tools = LogTools()
-    controller = TestController(Assistant(chat, log_tools), AgentLoop(chat, log_tools))
+    controller = TestController(Assistant(chat, log_tools), AgentLoop(chat, log_tools, Guardrails()))
     app = FastAPI(title="harness")
     app.include_router(controller.router)
     return app

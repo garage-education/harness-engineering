@@ -11,7 +11,8 @@ class RunResult:
     Every run returns one ``RunResult``. The ``StopReason`` says why the run ended.
 
     Attributes:
-        answer: the model's final text; ``None`` when the run stopped before a final answer
+        answer: the model's final text; ``None`` when the run stopped before a final answer;
+            the rejection text when the run was ``BLOCKED``
         reason: the reason the run stopped
         steps: the number of model calls the run made
         tokens: the total tokens the run used, as reported by the model server
@@ -34,6 +35,9 @@ class RunResult:
 
         LOOP_DETECTED = "LOOP_DETECTED"
         """The model requested the same tool call ``MAX_REPEATS`` times."""
+
+        BLOCKED = "BLOCKED"
+        """The question failed a guardrail check. No model call was made."""
 
     answer: str | None
     reason: StopReason

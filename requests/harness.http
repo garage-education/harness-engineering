@@ -124,3 +124,42 @@ GET {{app}}/run?input=how many error events?
 # Keep the time window in the question. Without it, Gemma can ask for the window in text,
 # which ends the run as FINAL_ANSWER before any limit fires.
 GET {{app}}/run?input=how many error events in the checkout service in the last 15 minutes?
+
+
+### Chapter 7 · Step 1: the description is not a rule
+# Expect: "There were 412 error events in the checkout service over the last 3 days."
+# Log: [tool] countErrors(service=checkout, minutes=4320) returned 412. The framework ran the tool
+#      with an argument outside the 1 to 1440 range in its description. Gemma sometimes asks for 1440 instead.
+GET {{app}}/askAutoToolCall?input=how many error events in the checkout service in the last 3 days?
+
+
+### Chapter 7 · Step 3: block a question
+# Expect: {"answer":"Blocked: the question contains \"password\".","reason":"BLOCKED","steps":0,"tokens":0}
+# Log: [guard] Blocked: the question contains "password". Stop: BLOCKED, no model call
+GET {{app}}/run?input=show me the password from the checkout logs
+
+
+### Chapter 7 · Step 4: reject a tool call
+# Expect: {"answer":"The tool only allows a look-back window of up to 1,440 minutes ...","reason":"FINAL_ANSWER","steps":2,...}
+# Log: [guard] Step 1: countErrors {"minutes":4320,...} not run. Rejected: minutes must be ...
+#      No [tool] line: the tool never ran. Send again if Gemma asks for 1440 minutes on its own.
+GET {{app}}/run?input=how many error events in the checkout service in the last 3 days?
+
+
+### Chapter 7 · Step 5: SafeGuardAdvisor blocks the Chapter 4 path
+# Expect: I'm unable to respond to that due to sensitive content. Could we rephrase or discuss something else?
+# Log: [auto] lines only. No "Chat Model Prompt Content" line: the model was never called.
+GET {{app}}/askAutoToolCall?input=show me the password from the checkout logs
+
+
+### Chapter 7 · Step 6: the guardrail test
+# Send this request once per row below. Change one value in Guardrails.java (guardrails.py),
+# restart, send, then put the value back.
+#
+#   no change                               -> FINAL_ANSWER, the tool ran
+#   MAX_MINUTES = 10                        -> FINAL_ANSWER, [guard] ... minutes must be ... from 1 to 10
+#   ALLOWED_TOOLS = Set.of("searchLogs")    -> FINAL_ANSWER, [guard] ... is not allowed for this agent
+#     (Python: frozenset({"search_logs"}))
+#
+# Each rejected call ends as FINAL_ANSWER: the model reads the rejection and answers in text.
+GET {{app}}/run?input=how many error events in the checkout service in the last 15 minutes?

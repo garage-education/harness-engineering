@@ -5,7 +5,8 @@ package com.garageeducation.harness;
  *
  * <p>Every run returns one {@code RunResult}. The {@link StopReason} says why the run ended.
  *
- * @param answer the model's final text; {@code null} when the run stopped before a final answer
+ * @param answer the model's final text; {@code null} when the run stopped before a final answer;
+ *               the rejection text when the run was {@link StopReason#BLOCKED}
  * @param reason the reason the run stopped
  * @param steps  the number of model calls the run made
  * @param tokens the total tokens the run used, as reported by the model server
@@ -30,6 +31,9 @@ public record RunResult(String answer, StopReason reason, int steps, int tokens)
         TIMEOUT,
 
         /** The model requested the same tool call {@code MAX_REPEATS} times. */
-        LOOP_DETECTED
+        LOOP_DETECTED,
+
+        /** The question failed a guardrail check. No model call was made. */
+        BLOCKED
     }
 }
